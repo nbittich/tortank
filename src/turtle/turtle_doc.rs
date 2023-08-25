@@ -13,8 +13,8 @@ use std::io::Read;
 use std::num::{ParseFloatError, ParseIntError};
 use std::ops::Add;
 use std::path::PathBuf;
-use std::rc::Rc;
 use std::str::ParseBoolError;
+use std::sync::Arc;
 use uuid::Uuid;
 
 struct Context<'a> {
@@ -38,7 +38,7 @@ pub enum Literal<'a> {
 pub enum Node<'a> {
     Iri(Cow<'a, str>),
     Literal(Literal<'a>),
-    Ref(Rc<Node<'a>>),
+    Ref(Arc<Node<'a>>),
     List(Vec<Node<'a>>),
 }
 #[derive(PartialEq, Debug, Clone)]
@@ -312,7 +312,7 @@ impl<'a> TurtleDoc<'a> {
                     if let Node::Ref(s) = subject {
                         s
                     } else {
-                        Rc::new(subject)
+                        Arc::new(subject)
                     }
                 };
                 for predicate_object in predicate_objects {
@@ -324,18 +324,18 @@ impl<'a> TurtleDoc<'a> {
                                 let predicate = if let Node::Ref(p) = predicate {
                                     p
                                 } else {
-                                    Rc::new(predicate)
+                                    Arc::new(predicate)
                                 };
                                 for node in nodes {
                                     statements.push(Statement {
-                                        subject: Node::Ref(Rc::clone(&subject)),
-                                        predicate: Node::Ref(Rc::clone(&predicate)),
+                                        subject: Node::Ref(Arc::clone(&subject)),
+                                        predicate: Node::Ref(Arc::clone(&predicate)),
                                         object: node,
                                     });
                                 }
                             }
                             node => statements.push(Statement {
-                                subject: Node::Ref(Rc::clone(&subject)),
+                                subject: Node::Ref(Arc::clone(&subject)),
                                 predicate,
                                 object: node,
                             }),
