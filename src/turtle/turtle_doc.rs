@@ -12,7 +12,7 @@ use std::fs::File;
 use std::io::Read;
 use std::num::{ParseFloatError, ParseIntError};
 use std::ops::Add;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::str::ParseBoolError;
 use uuid::Uuid;
@@ -156,22 +156,13 @@ impl<'a> TurtleDoc<'a> {
         let mut statements: Vec<&Statement> = self.statements.iter().collect();
 
         if let Some(subject) = subject {
-            statements = statements
-                .into_iter()
-                .filter(|s| &s.subject == subject)
-                .collect();
+            statements.retain(|s| &s.subject == subject);
         }
         if let Some(predicate) = predicate {
-            statements = statements
-                .into_iter()
-                .filter(|s| &s.predicate == predicate)
-                .collect();
+            statements.retain(|s| &s.predicate == predicate);
         }
         if let Some(object) = object {
-            statements = statements
-                .into_iter()
-                .filter(|s| &s.object == object)
-                .collect();
+            statements.retain(|s| &s.object == object);
         }
         statements
     }
@@ -418,16 +409,9 @@ impl Add for TurtleDoc<'_> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let mut statements: Vec<Statement> = self
-            .statements
-            .into_iter()
-            .chain(rhs.statements.into_iter())
-            .collect();
-        let prefixes: HashMap<&str, &str> = self
-            .prefixes
-            .into_iter()
-            .chain(rhs.prefixes.into_iter())
-            .collect();
+        let mut statements: Vec<Statement> =
+            self.statements.into_iter().chain(rhs.statements).collect();
+        let prefixes: HashMap<&str, &str> = self.prefixes.into_iter().chain(rhs.prefixes).collect();
         statements.dedup();
         TurtleDoc {
             statements,
@@ -565,13 +549,13 @@ mod test {
 
         "#;
         let turtle1 = TurtleDoc::from_string(doc1).unwrap();
-        assert_eq!(5, (&turtle1.statements).len());
+        assert_eq!(5, turtle1.statements.len());
 
         let turtle2 = TurtleDoc::from_string(doc2).unwrap();
-        assert_eq!(8, (&turtle2.statements).len());
+        assert_eq!(8, turtle2.statements.len());
 
         let turtle3 = turtle1 + turtle2;
-        assert_eq!(13, (&turtle3.statements).len());
+        assert_eq!(13, turtle3.statements.len());
         let mut turtle = TurtleDoc::default();
         turtle.add_statement(
             Iri(Borrowed("http://xxx.com/123")),
