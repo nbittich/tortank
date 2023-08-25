@@ -1,0 +1,6 @@
+@prefix : <http://xmlns.com/foaf/0.1/> .
+
+<mailto:person@example.net>
+  a :Person ;
+  :name "Anne Example-Person" ;
+  :interest <http://www.foaf-project.org/> , <http://www.ilrt.bris.ac.uk/discovery/2004/01/turtle/> .
