@@ -258,6 +258,10 @@ impl<'a> TurtleDoc<'a> {
                 message: e.to_string(),
             })?;
         }
+
+        writeln!(&mut file).map_err(|e| TurtleDocError {
+            message: e.to_string(),
+        })?;
         Ok(())
     }
 
