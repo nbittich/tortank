@@ -195,7 +195,7 @@ impl<'a> TurtleDoc<'a> {
             .iter()
             .map(|(k, v)| (Cow::Borrowed(*k), Cow::Borrowed(*v)))
             .collect();
-        let base = self.base.clone().map(|s| Cow::Borrowed(s));
+        let base = self.base.map(Cow::Borrowed);
 
         if let Some(subject) = subject {
             let (_, s) = parse_sub(&subject).map_err(|e| TurtleDocError {
@@ -388,7 +388,7 @@ impl<'a> TurtleDoc<'a> {
                     });
                 };
 
-                let iri = (*prefix).to_owned() + local_name;
+                let iri = prefix.clone() + local_name;
                 Ok(Node::Iri(Cow::Owned(iri.to_string())))
                 //
             }
@@ -450,11 +450,9 @@ impl<'a> TurtleDoc<'a> {
                 ASTLiteral::Decimal(b) => Ok(Node::Literal(Literal::Decimal(b))),
                 ASTLiteral::Integer(b) => Ok(Node::Literal(Literal::Integer(b))),
             },
-            _ => {
-                return Err(TurtleDocError {
-                    message: format!("{s:?} not valid!"),
-                })
-            }
+            _ => Err(TurtleDocError {
+                message: format!("{s:?} not valid!"),
+            }),
         }
     }
     fn get_node<'x>(
@@ -469,7 +467,7 @@ impl<'a> TurtleDoc<'a> {
                     .iter()
                     .map(|(k, v)| (Cow::Borrowed(*k), Cow::Borrowed(*v)))
                     .collect();
-                let base = ctx.base.clone().map(|s| Cow::Borrowed(s));
+                let base = ctx.base.map(Cow::Borrowed);
                 Self::simple_turtle_value_to_node(v, base, prefixes, true)
             }
             TurtleValue::BNode(BlankNode::Labeled(label)) => Ok(Node::Iri(Cow::Owned(
