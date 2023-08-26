@@ -221,7 +221,7 @@ impl<'a> TurtleDoc<'a> {
             })?;
 
             let object =
-                &Self::simple_turtle_value_to_node(o, base.clone(), prefixes.clone(), false)?;
+                &Self::simple_turtle_value_to_node(o, base.clone(), prefixes.clone(), true)?;
             statements.retain(|s| &s.object == object);
         }
 
