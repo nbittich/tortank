@@ -9,7 +9,8 @@ use serde_derive::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use std::fs::File;
+use std::fs::{File, OpenOptions};
+use std::io::prelude::*;
 use std::io::Read;
 use std::num::{ParseFloatError, ParseIntError};
 use std::ops::Add;
@@ -17,7 +18,6 @@ use std::path::PathBuf;
 use std::str::ParseBoolError;
 use std::sync::Arc;
 use uuid::Uuid;
-
 struct Context<'a> {
     base: Option<&'a str>,
     prefixes: HashMap<&'a str, &'a str>,
@@ -77,6 +77,13 @@ pub struct TurtleDoc<'a> {
     statements: Vec<Statement<'a>>,
 }
 
+impl RdfJsonTriple {
+    pub fn to_json_string(&self) -> Result<String, TurtleDocError> {
+        serde_json::to_string(self).map_err(|e| TurtleDocError {
+            message: e.to_string(),
+        })
+    }
+}
 impl<'a> PartialEq for Node<'a> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -189,6 +196,65 @@ impl<'a> TurtleDoc<'a> {
             statements.retain(|s| &s.object == object);
         }
         statements
+    }
+
+    pub fn to_file(
+        &self,
+        path: impl Into<PathBuf>,
+        buf_size: Option<usize>,
+        json: bool,
+    ) -> Result<(), TurtleDocError> {
+        let path = path.into();
+        if path.exists() {
+            std::fs::remove_file(&path).map_err(|e| TurtleDocError {
+                message: e.to_string(),
+            })?;
+        }
+        let buf_size = if let Some(buf_size) = buf_size {
+            buf_size
+        } else {
+            self.len()
+        };
+        let mut file = OpenOptions::new()
+            .append(true)
+            .open(path)
+            .map_err(|e| TurtleDocError {
+                message: e.to_string(),
+            })?;
+
+        if json {
+            // hackish bcos we buffer stmt
+            write!(&mut file, "[").map_err(|e| TurtleDocError {
+                message: e.to_string(),
+            })?;
+        }
+
+        for chunk in self.statements.chunks(buf_size) {
+            let out = if json {
+                let chunk = chunk
+                    .iter()
+                    .map(|stmt| Into::<RdfJsonTriple>::into(stmt))
+                    .map(|rdf| rdf.to_json_string())
+                    .collect::<Result<Vec<String>, _>>()?;
+                chunk.join(",")
+            } else {
+                chunk
+                    .iter()
+                    .map(|stmt| stmt.to_string())
+                    .collect::<Vec<String>>()
+                    .join("\n")
+            };
+            file.write_all(out.as_bytes()).map_err(|e| TurtleDocError {
+                message: e.to_string(),
+            })?;
+        }
+        if json {
+            // hackish bcos we buffer stmt
+            write!(&mut file, "]").map_err(|e| TurtleDocError {
+                message: e.to_string(),
+            })?;
+        }
+        Ok(())
     }
 
     pub fn from_statements(statements: Vec<Statement<'a>>) -> Result<Self, TurtleDocError> {
