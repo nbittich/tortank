@@ -219,6 +219,7 @@ impl<'a> TurtleDoc<'a> {
             self.len()
         };
         let mut file = OpenOptions::new()
+            .create_new(true)
             .append(true)
             .open(path)
             .map_err(|e| TurtleDocError {
