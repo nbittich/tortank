@@ -7,7 +7,7 @@ use crate::triple_common_parser::{BlankNode, Iri};
 use crate::turtle::turtle_parser::{statements, TurtleValue};
 use serde_derive::{Deserialize, Serialize};
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
@@ -20,9 +20,9 @@ use std::sync::Arc;
 use uuid::Uuid;
 struct Context<'a> {
     base: Option<&'a str>,
-    prefixes: HashMap<&'a str, &'a str>,
+    prefixes: BTreeMap<&'a str, &'a str>,
 }
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, PartialEq, Deserialize, Clone, Debug)]
 pub struct RdfJsonNode {
     #[serde(rename = "type")]
     pub typ: String,
@@ -32,21 +32,21 @@ pub struct RdfJsonNode {
     pub lang: Option<String>,
     pub value: String,
 }
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, PartialEq, Deserialize, Clone, Debug)]
 #[serde(untagged)]
 pub enum RdfJsonNodeResult {
     SingleNode(RdfJsonNode),
     ListNodes(Vec<RdfJsonNodeResult>),
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, PartialEq, Deserialize, Clone, Debug)]
 pub struct RdfJsonTriple {
     pub subject: RdfJsonNodeResult,
     pub predicate: RdfJsonNodeResult,
     pub object: RdfJsonNodeResult,
 }
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, PartialOrd, Clone, Debug)]
 pub enum Literal<'a> {
     Quoted {
         datatype: Option<Box<Node<'a>>>,
@@ -58,22 +58,22 @@ pub enum Literal<'a> {
     Integer(i64),
     Boolean(bool),
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialOrd, Clone)]
 pub enum Node<'a> {
     Iri(Cow<'a, str>),
     Literal(Literal<'a>),
     Ref(Arc<Node<'a>>),
     List(Vec<Node<'a>>),
 }
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, PartialOrd, Debug, Clone)]
 pub struct Statement<'a> {
     pub subject: Node<'a>,
     pub predicate: Node<'a>,
     pub object: Node<'a>,
 }
-#[derive(PartialEq, Debug, Default)]
+#[derive(PartialEq, PartialOrd, Debug, Default)]
 pub struct TurtleDoc<'a> {
-    prefixes: HashMap<&'a str, &'a str>,
+    prefixes: BTreeMap<&'a str, &'a str>,
     statements: Vec<Statement<'a>>,
 }
 
@@ -137,11 +137,14 @@ impl<'a> TurtleDoc<'a> {
     }
 
     pub fn add_statement(&mut self, subject: Node<'a>, predicate: Node<'a>, object: Node<'a>) {
-        self.statements.push(Statement {
+        let stmt = Statement {
             subject,
             predicate,
             object,
-        });
+        };
+        if !self.statements.contains(&stmt) {
+            self.statements.push(stmt);
+        }
     }
     pub fn len(&self) -> usize {
         self.statements.len()
@@ -266,7 +269,7 @@ impl<'a> TurtleDoc<'a> {
     fn new(turtle_values: Vec<TurtleValue<'a>>) -> Result<Self, TurtleDocError> {
         let mut context = Context {
             base: None,
-            prefixes: HashMap::new(),
+            prefixes: BTreeMap::new(),
         };
         let mut statements: Vec<Statement> = vec![];
 
@@ -417,18 +420,26 @@ impl<'a> TurtleDoc<'a> {
                                     Arc::new(predicate)
                                 };
                                 for node in nodes {
-                                    statements.push(Statement {
+                                    let statement = Statement {
                                         subject: Node::Ref(Arc::clone(&subject)),
                                         predicate: Node::Ref(Arc::clone(&predicate)),
                                         object: node,
-                                    });
+                                    };
+                                    if !statements.contains(&statement) {
+                                        statements.push(statement);
+                                    }
                                 }
                             }
-                            node => statements.push(Statement {
-                                subject: Node::Ref(Arc::clone(&subject)),
-                                predicate,
-                                object: node,
-                            }),
+                            node => {
+                                let statement = Statement {
+                                    subject: Node::Ref(Arc::clone(&subject)),
+                                    predicate,
+                                    object: node,
+                                };
+                                if !statements.contains(&statement) {
+                                    statements.push(statement);
+                                }
+                            }
                         }
                     } else {
                         return Err(TurtleDocError {
@@ -499,12 +510,17 @@ impl Add for TurtleDoc<'_> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let mut statements: Vec<Statement> =
-            self.statements.into_iter().chain(rhs.statements).collect();
-        let prefixes: HashMap<&str, &str> = self.prefixes.into_iter().chain(rhs.prefixes).collect();
-        statements.dedup();
+        let mut statements: Vec<Statement> = Vec::with_capacity(self.len() + rhs.len());
+
+        for stmt in self.statements.into_iter().chain(rhs.statements) {
+            if !statements.contains(&stmt) {
+                statements.push(stmt);
+            }
+        }
+        let prefixes: BTreeMap<&str, &str> =
+            self.prefixes.into_iter().chain(rhs.prefixes).collect();
         TurtleDoc {
-            statements,
+            statements: statements.into_iter().collect(),
             prefixes,
         }
     }
@@ -515,7 +531,10 @@ impl From<&TurtleDoc<'_>> for Vec<RdfJsonTriple> {
         let statements = &value.statements;
         let mut out: Vec<RdfJsonTriple> = Vec::with_capacity(statements.len());
         for statement in statements {
-            out.push(statement.into());
+            let statement = statement.into();
+            if !out.contains(&statement) {
+                out.push(statement.into());
+            }
         }
         out
     }
@@ -584,7 +603,10 @@ impl From<&Node<'_>> for RdfJsonNodeResult {
                 let mut v: Vec<RdfJsonNodeResult> = Vec::with_capacity(list.len());
 
                 for node in list {
-                    v.push(node.into());
+                    let node = node.into();
+                    if !v.contains(&node) {
+                        v.push(node.into());
+                    }
                 }
 
                 RdfJsonNodeResult::ListNodes(v)
@@ -765,12 +787,12 @@ mod test {
         let triple = r#"
         # this is a comment
          <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>. # this is a comment at EOF
-             <http://bittich.be/some/url/123><http://example.org/firstName><http://n.com/nordine>.
+             <http://bittich.be/some/url/123><http://example.org/firstName2><http://n.com/nordine>.
              <http://example.org/show/218> <http://www.w3.org/2000/01/rdf-schema#label> "That Seventies Show".
              <http://example.org/show/218> <http://example.org/show/localName> "That Seventies Show"@en .
-         <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
-         <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
-         <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
+         <http://bittich.be/some/url/1233>    <http://example.org/firstName><http://n.com/nordine>  .
+         <http://bittich.be/some/url/1243>    <http://example.org/firstName><http://n.com/nordine>  .
+         <http://bittich.be/some/url/1253>    <http://example.org/firstName><http://n.com/nordine>  .
          #  the entire line is commented <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
          #  the entire line is commented <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
          #  the entire line is commented <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
@@ -779,7 +801,7 @@ mod test {
             #  the entire line is commented <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
             _:alice <http://xmlns.com/foaf/0.1/knows> _:bob .
             _:bob <http://xmlns.com/foaf/0.1/knows> _:alice .
-         <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
+         <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordineB>  .
          <http://example.org/show/218> <http://example.org/show/localName> "Cette Série des Années Septante"@fr-be .
 
          <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/specificGravity> "1.663E-4"^^<http://www.w3.org/2001/XMLSchema#double> .     # xsd:double
@@ -800,7 +822,7 @@ mod test {
          <http://example.org/show/218> <http://example.org/show/localName> "Cette Série des Années Septante"@fr-be .
 
          <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/specificGravity> "1.663E-4"^^<http://www.w3.org/2001/XMLSchema#double> .     # xsd:double
-         <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/specificGravity> "1.663E-4"^^<http://www.w3.org/2001/XMLSchema#double> .     # xsd:double
+         <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/specificGravity2> "1.663E-4"^^<http://www.w3.org/2001/XMLSchema#double> .     # xsd:double
          <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/specificGravity> "1.663E-4"^^<http://www.w3.org/2001/XMLSchema#decimal> .     # xsd:double
          <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/specificGravity> "1123"^^<http://www.w3.org/2001/XMLSchema#integer> .     # xsd:double
          <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/nice> "true"^^<http://www.w3.org/2001/XMLSchema#boolean> .
