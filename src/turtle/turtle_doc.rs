@@ -233,7 +233,7 @@ impl<'a> TurtleDoc<'a> {
             let out = if json {
                 let chunk = chunk
                     .iter()
-                    .map(|stmt| Into::<RdfJsonTriple>::into(stmt))
+                    .map(Into::<RdfJsonTriple>::into)
                     .map(|rdf| rdf.to_json_string())
                     .collect::<Result<Vec<String>, _>>()?;
                 chunk.join(",")
