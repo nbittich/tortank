@@ -1,3 +1,4 @@
+/// copied from https://github.com/rust-bakery/nom/blob/7.1.3/examples/string.rs
 use nom::branch::alt;
 use nom::bytes::streaming::{is_not, take_while_m_n};
 use nom::character::streaming::{char, multispace1};
