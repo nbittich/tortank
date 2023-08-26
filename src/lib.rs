@@ -1,4 +1,5 @@
-pub mod shared;
+mod shared;
+mod string_parser;
 mod triple_common_parser;
 pub mod turtle;
 

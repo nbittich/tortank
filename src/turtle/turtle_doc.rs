@@ -5,6 +5,7 @@ use crate::shared::{
 use crate::triple_common_parser::Literal as ASTLiteral;
 use crate::triple_common_parser::{BlankNode, Iri};
 use crate::turtle::turtle_parser::{statements, TurtleValue};
+use serde_derive::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
@@ -21,12 +22,35 @@ struct Context<'a> {
     base: Option<&'a str>,
     prefixes: HashMap<&'a str, &'a str>,
 }
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct RdfJsonNode {
+    #[serde(rename = "type")]
+    pub typ: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub datatype: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lang: Option<String>,
+    pub value: String,
+}
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(untagged)]
+pub enum RdfJsonNodeResult {
+    SingleNode(RdfJsonNode),
+    ListNodes(Vec<RdfJsonNodeResult>),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct RdfJsonTriple {
+    pub subject: RdfJsonNodeResult,
+    pub predicate: RdfJsonNodeResult,
+    pub object: RdfJsonNodeResult,
+}
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Literal<'a> {
     Quoted {
         datatype: Option<Box<Node<'a>>>,
-        value: &'a str,
+        value: String,
         lang: Option<&'a str>,
     },
     Double(f64),
@@ -167,7 +191,7 @@ impl<'a> TurtleDoc<'a> {
         statements
     }
 
-    fn from_statements(statements: Vec<Statement<'a>>) -> Result<Self, TurtleDocError> {
+    pub fn from_statements(statements: Vec<Statement<'a>>) -> Result<Self, TurtleDocError> {
         let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()))?;
         doc.statements.extend(statements);
         Ok(doc)
@@ -419,6 +443,89 @@ impl Add for TurtleDoc<'_> {
         }
     }
 }
+
+impl From<&TurtleDoc<'_>> for Vec<RdfJsonTriple> {
+    fn from(value: &TurtleDoc<'_>) -> Self {
+        let statements = &value.statements;
+        let mut out: Vec<RdfJsonTriple> = Vec::with_capacity(statements.len());
+        for statement in statements {
+            out.push(statement.into());
+        }
+        out
+    }
+}
+impl From<&Statement<'_>> for RdfJsonTriple {
+    fn from(value: &Statement<'_>) -> Self {
+        let subject = &value.subject;
+        let predicate = &value.predicate;
+        let object = &value.object;
+        RdfJsonTriple {
+            subject: subject.into(),
+            predicate: predicate.into(),
+            object: object.into(),
+        }
+    }
+}
+impl From<&Node<'_>> for RdfJsonNodeResult {
+    fn from(value: &Node<'_>) -> Self {
+        let typ_uri = "uri".into();
+        let typ_literal = "literal".into();
+        match value {
+            Node::Iri(iri) => RdfJsonNodeResult::SingleNode(RdfJsonNode {
+                typ: typ_uri,
+                datatype: None,
+                lang: None,
+                value: iri.to_string(),
+            }),
+            Node::Literal(Literal::Quoted {
+                datatype,
+                lang,
+                value,
+            }) => RdfJsonNodeResult::SingleNode(RdfJsonNode {
+                typ: typ_literal,
+                datatype: datatype.clone().map(|dt| dt.to_string()),
+                lang: lang.map(|l| l.to_string()),
+                value: value.to_string(),
+            }),
+            Node::Literal(Literal::Integer(i)) => RdfJsonNodeResult::SingleNode(RdfJsonNode {
+                typ: typ_literal,
+                datatype: Some(XSD_INTEGER.to_string()),
+                lang: None,
+                value: i.to_string(),
+            }),
+            Node::Literal(Literal::Decimal(d)) => RdfJsonNodeResult::SingleNode(RdfJsonNode {
+                typ: typ_literal,
+                datatype: Some(XSD_DECIMAL.to_string()),
+                lang: None,
+                value: d.to_string(),
+            }),
+            Node::Literal(Literal::Double(d)) => RdfJsonNodeResult::SingleNode(RdfJsonNode {
+                typ: typ_literal,
+                datatype: Some(XSD_DOUBLE.to_string()),
+                lang: None,
+                value: d.to_string(),
+            }),
+
+            Node::Literal(Literal::Boolean(d)) => RdfJsonNodeResult::SingleNode(RdfJsonNode {
+                typ: typ_literal,
+                datatype: Some(XSD_BOOLEAN.to_string()),
+                lang: None,
+                value: d.to_string(),
+            }),
+            Node::Ref(r) => r.as_ref().into(),
+            Node::List(list) => {
+                // todo
+                let mut v: Vec<RdfJsonNodeResult> = Vec::with_capacity(list.len());
+
+                for node in list {
+                    v.push(node.into());
+                }
+
+                RdfJsonNodeResult::ListNodes(v)
+            }
+        }
+    }
+}
 impl Display for Node<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -490,7 +597,7 @@ impl Display for TurtleDocError {
 
 #[cfg(test)]
 mod test {
-    use crate::turtle::turtle_doc::{Literal, Node, TurtleDoc};
+    use crate::turtle::turtle_doc::{Literal, Node, RdfJsonTriple, TurtleDoc};
     use std::borrow::Cow;
     use Cow::Borrowed;
     use Node::Iri;
@@ -652,5 +759,24 @@ mod test {
 
         dbg!(&expected);
         assert_eq!(diff, expected);
+    }
+    #[test]
+    fn turtle_doc_to_json_test() {
+        let doc = r#"
+                    @prefix foaf: <http://foaf.com/>.
+                    [ foaf:name "Alice" ] foaf:knows [
+                foaf:name "Bob" ;
+                foaf:description "\"c'est l'histoire de la vie\"\n"@fr;
+                foaf:lastName "George", "Joshua" ;
+                foaf:age 34;
+                foaf:knows [
+                    foaf:name "Eve" ] ;
+                foaf:mbox <bob@example.com>] .
+
+        "#;
+        let turtle = TurtleDoc::from_string(doc).unwrap();
+        let json_triples: Vec<RdfJsonTriple> = (&turtle).into();
+        assert_eq!(json_triples.len(), turtle.len());
+        println!("{}", serde_json::to_string_pretty(&json_triples).unwrap());
     }
 }

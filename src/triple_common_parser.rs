@@ -19,7 +19,7 @@ pub enum Iri<'a> {
 pub enum Literal<'a> {
     Quoted {
         datatype: Option<Iri<'a>>,
-        value: &'a str,
+        value: String,
         lang: Option<&'a str>,
     },
     Double(f64),
@@ -113,6 +113,7 @@ pub(crate) mod literal {
     };
     use crate::prelude::*;
     use crate::shared::XSD_STRING;
+    use crate::string_parser::parse_escaped_string;
     use crate::triple_common_parser::iri::iri;
     use crate::triple_common_parser::{Iri, Literal};
     pub(crate) fn parse_boolean<'a>(
@@ -185,10 +186,16 @@ pub(crate) mod literal {
         let (remaining, string_literal) = preceded(
             multispace0,
             alt((
-                single_quote_literal,
-                double_quote_literal,
-                long_quote_literal,
-                long_single_quote_literal,
+                parse_escaped_string,
+                map(
+                    alt((
+                        single_quote_literal,
+                        double_quote_literal,
+                        long_quote_literal,
+                        long_single_quote_literal,
+                    )),
+                    String::from,
+                ),
             )),
         )(s)?;
 
