@@ -83,14 +83,14 @@ fn literal_turtle(s: &str) -> ParserResult<TurtleValue> {
     map(literal, TurtleValue::Literal)(s)
 }
 
-fn subject(s: &str) -> ParserResult<TurtleValue> {
+pub(crate) fn subject(s: &str) -> ParserResult<TurtleValue> {
     alt((blank_node, iri_turtle, collection_turtle))(s)
 }
-fn predicate(s: &str) -> ParserResult<TurtleValue> {
+pub(crate) fn predicate(s: &str) -> ParserResult<TurtleValue> {
     alt((map(ns_type, TurtleValue::Iri), iri_turtle))(s)
 }
 
-fn object(s: &str) -> ParserResult<TurtleValue> {
+pub(crate) fn object(s: &str) -> ParserResult<TurtleValue> {
     alt((iri_turtle, blank_node, collection_turtle, literal_turtle))(s)
 }
 

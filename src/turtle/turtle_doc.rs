@@ -4,7 +4,9 @@ use crate::shared::{
 };
 use crate::triple_common_parser::Literal as ASTLiteral;
 use crate::triple_common_parser::{BlankNode, Iri};
-use crate::turtle::turtle_parser::{statements, TurtleValue};
+use crate::turtle::turtle_parser::{
+    object as parse_obj, predicate as parse_pred, statements, subject as parse_sub, TurtleValue,
+};
 use serde_derive::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -18,6 +20,7 @@ use std::path::PathBuf;
 use std::str::ParseBoolError;
 use std::sync::Arc;
 use uuid::Uuid;
+
 struct Context<'a> {
     base: Option<&'a str>,
     prefixes: BTreeMap<&'a str, &'a str>,
@@ -73,6 +76,7 @@ pub struct Statement<'a> {
 }
 #[derive(PartialEq, PartialOrd, Debug, Default)]
 pub struct TurtleDoc<'a> {
+    base: Option<&'a str>,
     prefixes: BTreeMap<&'a str, &'a str>,
     statements: Vec<Statement<'a>>,
 }
@@ -177,6 +181,51 @@ impl<'a> TurtleDoc<'a> {
             .collect::<Vec<_>>();
 
         TurtleDoc::from_statements(diff)
+    }
+
+    pub fn parse_and_list_statements(
+        &self,
+        subject: Option<String>,
+        predicate: Option<String>,
+        object: Option<String>,
+    ) -> Result<Vec<&Statement>, TurtleDocError> {
+        let mut statements: Vec<&Statement> = self.statements.iter().collect();
+        let prefixes: BTreeMap<Cow<str>, Cow<str>> = self
+            .prefixes
+            .iter()
+            .map(|(k, v)| (Cow::Borrowed(*k), Cow::Borrowed(*v)))
+            .collect();
+        let base = self.base.clone().map(|s| Cow::Borrowed(s));
+
+        if let Some(subject) = subject {
+            let (_, s) = parse_sub(&subject).map_err(|e| TurtleDocError {
+                message: e.to_string(),
+            })?;
+
+            let subject =
+                &Self::simple_turtle_value_to_node(s, base.clone(), prefixes.clone(), false)?;
+            statements.retain(|s| &s.subject == subject);
+        }
+        if let Some(predicate) = predicate {
+            let (_, p) = parse_pred(&predicate).map_err(|e| TurtleDocError {
+                message: e.to_string(),
+            })?;
+
+            let predicate =
+                &Self::simple_turtle_value_to_node(p, base.clone(), prefixes.clone(), false)?;
+            statements.retain(|s| &s.predicate == predicate);
+        }
+        if let Some(object) = object {
+            let (_, o) = parse_obj(&object).map_err(|e| TurtleDocError {
+                message: e.to_string(),
+            })?;
+
+            let object =
+                &Self::simple_turtle_value_to_node(o, base.clone(), prefixes.clone(), false)?;
+            statements.retain(|s| &s.object == object);
+        }
+
+        Ok(statements)
     }
 
     /// list statements in document
@@ -301,6 +350,7 @@ impl<'a> TurtleDoc<'a> {
             }
         }
         Ok(TurtleDoc {
+            base: context.base,
             statements,
             prefixes: context.prefixes,
         })
@@ -315,82 +365,112 @@ impl<'a> TurtleDoc<'a> {
             })
         }
     }
+    fn simple_turtle_value_to_node<'x>(
+        s: TurtleValue<'x>,
+        base: Option<Cow<str>>,
+        prefixes: BTreeMap<Cow<str>, Cow<str>>,
+        allow_literals: bool,
+    ) -> Result<Node<'x>, TurtleDocError> {
+        match s {
+            TurtleValue::Iri(Iri::Enclosed(iri)) => {
+                if !iri.starts_with("http://") && !iri.starts_with("https://") {
+                    if let Some(base) = base {
+                        let iri = (*base).to_owned() + iri;
+                        return Ok(Node::Iri(Cow::Owned(iri.to_string())));
+                    }
+                }
+                Ok(Node::Iri(Cow::Borrowed(iri)))
+            }
+            TurtleValue::Iri(Iri::Prefixed { prefix, local_name }) => {
+                let Some(prefix) = prefixes.get(prefix) else {
+                    return Err(TurtleDocError {
+                        message: format!("prefix {prefix} unknown"),
+                    });
+                };
 
+                let iri = (*prefix).to_owned() + local_name;
+                Ok(Node::Iri(Cow::Owned(iri.to_string())))
+                //
+            }
+            TurtleValue::Literal(literal) if allow_literals => match literal {
+                ASTLiteral::Quoted {
+                    datatype,
+                    value,
+                    lang,
+                } => {
+                    let datatype = if let Some(dt) = datatype {
+                        let dt = Self::simple_turtle_value_to_node(
+                            TurtleValue::Iri(dt),
+                            base,
+                            prefixes,
+                            allow_literals,
+                        )?;
+                        Some(dt)
+                    } else {
+                        None
+                    };
+                    match datatype {
+                        Some(Node::Iri(iri)) if iri == XSD_BOOLEAN => {
+                            Ok(Node::Literal(Literal::Boolean(value.parse().map_err(
+                                |e: ParseBoolError| TurtleDocError {
+                                    message: e.to_string(),
+                                },
+                            )?)))
+                        }
+                        Some(Node::Iri(iri)) if iri == XSD_INTEGER => {
+                            Ok(Node::Literal(Literal::Integer(value.parse().map_err(
+                                |e: ParseIntError| TurtleDocError {
+                                    message: e.to_string(),
+                                },
+                            )?)))
+                        }
+                        Some(Node::Iri(iri)) if iri == XSD_DECIMAL => {
+                            Ok(Node::Literal(Literal::Decimal(value.parse().map_err(
+                                |e: ParseFloatError| TurtleDocError {
+                                    message: e.to_string(),
+                                },
+                            )?)))
+                        }
+                        Some(Node::Iri(iri)) if iri == XSD_DOUBLE => {
+                            Ok(Node::Literal(Literal::Double(value.parse().map_err(
+                                |e: ParseFloatError| TurtleDocError {
+                                    message: e.to_string(),
+                                },
+                            )?)))
+                        }
+                        dt => Ok(Node::Literal(Literal::Quoted {
+                            datatype: dt.map(Box::new),
+                            lang,
+                            value,
+                        })),
+                    }
+                }
+                ASTLiteral::Boolean(b) => Ok(Node::Literal(Literal::Boolean(b))),
+                ASTLiteral::Double(b) => Ok(Node::Literal(Literal::Double(b))),
+                ASTLiteral::Decimal(b) => Ok(Node::Literal(Literal::Decimal(b))),
+                ASTLiteral::Integer(b) => Ok(Node::Literal(Literal::Integer(b))),
+            },
+            _ => {
+                return Err(TurtleDocError {
+                    message: format!("{s:?} not valid!"),
+                })
+            }
+        }
+    }
     fn get_node<'x>(
         value: TurtleValue<'a>,
         ctx: &'x Context,
         statements: &'x mut Vec<Statement<'a>>,
     ) -> Result<Node<'a>, TurtleDocError> {
         match value {
-            TurtleValue::Iri(Iri::Prefixed { prefix, local_name }) => {
-                let prefix = *ctx.prefixes.get(prefix).ok_or(TurtleDocError {
-                    message: "prefix not found".into(),
-                })?;
-                let full_iri = prefix.to_owned() + local_name;
-                Ok(Node::Iri(Cow::Owned(full_iri)))
-            }
-            TurtleValue::Iri(Iri::Enclosed(iri)) => {
-                if !iri.starts_with("http://") && !iri.starts_with("https://") {
-                    if let Some(base) = ctx.base {
-                        return Ok(Node::Iri(Cow::Owned(base.to_owned() + iri)));
-                    }
-                }
-                Ok(Node::Iri(Cow::Borrowed(iri)))
-            }
-            TurtleValue::Literal(literal) => {
-                let literal = match literal {
-                    ASTLiteral::Boolean(b) => Node::Literal(Literal::Boolean(b)),
-                    ASTLiteral::Double(b) => Node::Literal(Literal::Double(b)),
-                    ASTLiteral::Decimal(b) => Node::Literal(Literal::Decimal(b)),
-                    ASTLiteral::Integer(b) => Node::Literal(Literal::Integer(b)),
-                    ASTLiteral::Quoted {
-                        datatype,
-                        lang,
-                        value,
-                    } => {
-                        let datatype: Option<Node<'a>> = if let Some(datatype) = datatype {
-                            Some(Self::get_node(TurtleValue::Iri(datatype), ctx, statements)?)
-                        } else {
-                            None
-                        };
-                        match datatype {
-                            Some(Node::Iri(iri)) if iri == XSD_BOOLEAN => {
-                                Node::Literal(Literal::Boolean(value.parse().map_err(
-                                    |e: ParseBoolError| TurtleDocError {
-                                        message: e.to_string(),
-                                    },
-                                )?))
-                            }
-                            Some(Node::Iri(iri)) if iri == XSD_INTEGER => {
-                                Node::Literal(Literal::Integer(value.parse().map_err(
-                                    |e: ParseIntError| TurtleDocError {
-                                        message: e.to_string(),
-                                    },
-                                )?))
-                            }
-                            Some(Node::Iri(iri)) if iri == XSD_DECIMAL => {
-                                Node::Literal(Literal::Decimal(value.parse().map_err(
-                                    |e: ParseFloatError| TurtleDocError {
-                                        message: e.to_string(),
-                                    },
-                                )?))
-                            }
-                            Some(Node::Iri(iri)) if iri == XSD_DOUBLE => {
-                                Node::Literal(Literal::Double(value.parse().map_err(
-                                    |e: ParseFloatError| TurtleDocError {
-                                        message: e.to_string(),
-                                    },
-                                )?))
-                            }
-                            dt => Node::Literal(Literal::Quoted {
-                                datatype: dt.map(Box::new),
-                                lang,
-                                value,
-                            }),
-                        }
-                    }
-                };
-                Ok(literal)
+            v @ TurtleValue::Iri(_) | v @ TurtleValue::Literal(_) => {
+                let prefixes: BTreeMap<Cow<str>, Cow<str>> = ctx
+                    .prefixes
+                    .iter()
+                    .map(|(k, v)| (Cow::Borrowed(*k), Cow::Borrowed(*v)))
+                    .collect();
+                let base = ctx.base.clone().map(|s| Cow::Borrowed(s));
+                Self::simple_turtle_value_to_node(v, base, prefixes, true)
             }
             TurtleValue::BNode(BlankNode::Labeled(label)) => Ok(Node::Iri(Cow::Owned(
                 DEFAULT_WELL_KNOWN_PREFIX.to_owned() + label,
@@ -522,9 +602,11 @@ impl Add for TurtleDoc<'_> {
                 statements.push(stmt);
             }
         }
+
         let prefixes: BTreeMap<&str, &str> =
             self.prefixes.into_iter().chain(rhs.prefixes).collect();
         TurtleDoc {
+            base: self.base,
             statements: statements.into_iter().collect(),
             prefixes,
         }
