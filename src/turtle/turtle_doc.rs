@@ -7,7 +7,7 @@ use crate::triple_common_parser::{BlankNode, Iri};
 use crate::turtle::turtle_parser::{statements, TurtleValue};
 use serde_derive::{Deserialize, Serialize};
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
@@ -533,7 +533,7 @@ impl From<&TurtleDoc<'_>> for Vec<RdfJsonTriple> {
         for statement in statements {
             let statement = statement.into();
             if !out.contains(&statement) {
-                out.push(statement.into());
+                out.push(statement);
             }
         }
         out
@@ -605,7 +605,7 @@ impl From<&Node<'_>> for RdfJsonNodeResult {
                 for node in list {
                     let node = node.into();
                     if !v.contains(&node) {
-                        v.push(node.into());
+                        v.push(node);
                     }
                 }
 
