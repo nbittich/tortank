@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::prelude::{
     char, delimited, line_ending, many0, multispace0, preceded, tag, tag_no_case, take_until,
     ParserResult,
@@ -19,7 +21,7 @@ pub enum Iri<'a> {
 pub enum Literal<'a> {
     Quoted {
         datatype: Option<Iri<'a>>,
-        value: String,
+        value: Cow<'a, str>,
         lang: Option<&'a str>,
     },
     Double(f64),
@@ -43,7 +45,10 @@ pub(crate) mod iri {
             separated_pair(
                 take_while(|s: char| s.is_alphanumeric()),
                 tag(":"),
-                escaped(alphanumeric1, '\\', one_of(PN_LOCAL_ESC)),
+                alt((
+                    take_while(|s: char| s.is_alphanumeric() || PN_LOCAL_ESC.contains(s)),
+                    escaped(alphanumeric1, '\\', one_of(PN_LOCAL_ESC)),
+                )),
             ),
             |(prefix, local_name)| Iri::Prefixed { prefix, local_name },
         );
@@ -107,10 +112,9 @@ pub(crate) mod prologue {
     }
 }
 pub(crate) mod literal {
-    use crate::grammar::{
-        LANGTAG, STRING_LITERAL_LONG_QUOTE, STRING_LITERAL_LONG_SINGLE_QUOTE, STRING_LITERAL_QUOTE,
-        STRING_LITERAL_SINGLE_QUOTE,
-    };
+    use std::borrow::Cow;
+
+    use crate::grammar::{LANGTAG, STRING_LITERAL_LONG_QUOTE, STRING_LITERAL_LONG_SINGLE_QUOTE};
     use crate::prelude::*;
     use crate::shared::XSD_STRING;
     use crate::string_parser::parse_escaped_string;
@@ -157,16 +161,6 @@ pub(crate) mod literal {
     }
 
     pub(crate) fn string_literal(s: &str) -> ParserResult<Literal> {
-        let single_quote_literal = delimited(
-            tag(STRING_LITERAL_SINGLE_QUOTE),
-            take_until1(STRING_LITERAL_SINGLE_QUOTE),
-            tag(STRING_LITERAL_SINGLE_QUOTE),
-        );
-        let double_quote_literal = delimited(
-            tag(STRING_LITERAL_QUOTE),
-            take_until1(STRING_LITERAL_QUOTE),
-            tag(STRING_LITERAL_QUOTE),
-        );
         let long_single_quote_literal = delimited(
             tag(STRING_LITERAL_LONG_SINGLE_QUOTE),
             take_until1(STRING_LITERAL_LONG_SINGLE_QUOTE),
@@ -186,16 +180,11 @@ pub(crate) mod literal {
         let (remaining, string_literal) = preceded(
             multispace0,
             alt((
-                parse_escaped_string,
                 map(
-                    alt((
-                        single_quote_literal,
-                        double_quote_literal,
-                        long_quote_literal,
-                        long_single_quote_literal,
-                    )),
-                    String::from,
+                    alt((long_quote_literal, long_single_quote_literal)),
+                    Cow::Borrowed,
                 ),
+                parse_escaped_string,
             )),
         )(s)?;
 
@@ -369,4 +358,38 @@ pub(crate) fn tag_no_space<'a>(s: &'a str) -> impl FnMut(&'a str) -> ParserResul
 #[allow(unused)]
 pub(crate) fn tag_no_case_no_space<'a>(s: &'a str) -> impl FnMut(&'a str) -> ParserResult<&'a str> {
     delimited(multispace0, tag_no_case(s), multispace0)
+}
+
+#[cfg(test)]
+mod test {
+    use crate::triple_common_parser::Iri;
+
+    use super::iri;
+
+    #[test]
+    fn test_parse_iri_escaped() {
+        let iri_str = "<http://a.example/%66oo-bar>";
+        let (_, res) = iri::iri(iri_str).unwrap();
+        assert_eq!(Iri::Enclosed("http://a.example/%66oo-bar"), res);
+
+        let iri_prefix = "ex:%66oo-bar";
+        let (_, res) = iri::iri(iri_prefix).unwrap();
+        assert_eq!(
+            Iri::Prefixed {
+                prefix: "ex",
+                local_name: "%66oo-bar"
+            },
+            res
+        );
+        let iri_prefix = "ex:\\%66oo-bar";
+        let (_, res) = iri::iri(iri_prefix).unwrap();
+        assert_eq!(
+            Iri::Prefixed {
+                prefix: "ex",
+                local_name: "\\%66oo-bar"
+            },
+            res
+        );
+        println!("{res:?}");
+    }
 }

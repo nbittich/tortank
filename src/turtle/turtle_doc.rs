@@ -53,7 +53,7 @@ pub struct RdfJsonTriple {
 pub enum Literal<'a> {
     Quoted {
         datatype: Option<Box<Node<'a>>>,
-        value: String,
+        value: Cow<'a, str>,
         lang: Option<&'a str>,
     },
     Double(f64),

@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 /// copied from https://github.com/rust-bakery/nom/blob/7.1.3/examples/string.rs
 use nom::branch::alt;
 use nom::bytes::streaming::{is_not, take_while_m_n};
@@ -7,6 +9,8 @@ use nom::error::{FromExternalError, ParseError};
 use nom::multi::fold_many0;
 use nom::sequence::{delimited, preceded};
 use nom::IResult;
+
+use crate::grammar::{STRING_LITERAL_QUOTE, STRING_LITERAL_SINGLE_QUOTE};
 
 // parser combinators are constructed from the bottom up:
 // first we write parsers for the smallest elements (escaped characters),
@@ -120,32 +124,49 @@ where
 
 /// Parse a string. Use a loop of parse_fragment and push all of the fragments
 /// into an output string.
-pub(crate) fn parse_escaped_string<'a, E>(input: &'a str) -> IResult<&'a str, String, E>
+pub(crate) fn parse_escaped_string<'a, E>(input: &'a str) -> IResult<&'a str, Cow<str>, E>
 where
     E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
 {
     // fold_many0 is the equivalent of iterator::fold. It runs a parser in a loop,
     // and for each output value, calls a folding function on each output value.
-    let build_string = fold_many0(
-        // Our parser function– parses a single string fragment
-        parse_fragment,
-        // Our init value, an empty string
-        String::new,
-        // Our folding function. For each fragment, append the fragment to the
-        // string.
-        |mut string, fragment| {
-            match fragment {
-                StringFragment::Literal(s) => string.push_str(s),
-                StringFragment::EscapedChar(c) => string.push(c),
-                StringFragment::EscapedWS => {}
-            }
-            string
-        },
-    );
+    let build_string = || {
+        fold_many0(
+            // Our parser function– parses a single string fragment
+            parse_fragment,
+            // Our init value, an empty string
+            String::new,
+            // Our folding function. For each fragment, append the fragment to the
+            // string.
+            |mut string, fragment| {
+                match fragment {
+                    StringFragment::Literal(s) => string.push_str(s),
+                    StringFragment::EscapedChar(c) => string.push(c),
+                    StringFragment::EscapedWS => {}
+                }
+                string
+            },
+        )
+    };
 
     // Finally, parse the string. Note that, if `build_string` could accept a raw
     // " character, the closing delimiter " would never match. When using
     // `delimited` with a looping parser (like fold_many0), be sure that the
     // loop won't accidentally match your closing delimiter!
-    delimited(char('"'), build_string, char('"'))(input)
+
+    map(
+        alt((
+            delimited(
+                char(STRING_LITERAL_SINGLE_QUOTE),
+                build_string(),
+                char(STRING_LITERAL_SINGLE_QUOTE),
+            ),
+            delimited(
+                char(STRING_LITERAL_QUOTE),
+                build_string(),
+                char(STRING_LITERAL_QUOTE),
+            ),
+        )),
+        Cow::Owned,
+    )(input)
 }

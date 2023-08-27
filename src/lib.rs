@@ -32,8 +32,8 @@ pub mod prelude {
 pub mod grammar {
     pub const PN_LOCAL_ESC: &str = "_~-!$&\\:()*+=/?#%";
     pub const PERCENT: &str = "%";
-    pub const STRING_LITERAL_QUOTE: &str = r#"""#;
-    pub const STRING_LITERAL_SINGLE_QUOTE: &str = "'";
+    pub const STRING_LITERAL_QUOTE: char = '"';
+    pub const STRING_LITERAL_SINGLE_QUOTE: char = '\'';
     pub const STRING_LITERAL_LONG_SINGLE_QUOTE: &str = "'''";
     pub const STRING_LITERAL_LONG_QUOTE: &str = r#"""""#;
     pub const LANGTAG: &str = "@";
