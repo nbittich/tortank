@@ -88,6 +88,16 @@ impl RdfJsonTriple {
         })
     }
 }
+
+impl<'a> TryFrom<&'a str> for RdfJsonNodeResult {
+    type Error = TurtleDocError;
+
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+        serde_json::from_str(value).map_err(|e| TurtleDocError {
+            message: e.to_string(),
+        })
+    }
+}
 impl<'a> PartialEq for Node<'a> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -768,12 +778,116 @@ impl Display for TurtleDocError {
     }
 }
 
+impl<'a> TryFrom<&'a RdfJsonTriple> for Statement<'a> {
+    type Error = TurtleDocError;
+
+    fn try_from(value: &'a RdfJsonTriple) -> Result<Self, Self::Error> {
+        fn rjs_to_node<'a>(n: &'a RdfJsonNode) -> Result<Node<'a>, TurtleDocError> {
+            match n.typ.as_str() {
+                "uri" => return Ok(Node::Iri(Cow::Borrowed(&n.value))),
+                "literal" => match &n.datatype {
+                    Some(dt) => match dt.as_str() {
+                        XSD_DOUBLE => {
+                            return n
+                                .value
+                                .parse::<f64>()
+                                .map(|f| Node::Literal(Literal::Double(f)))
+                                .map_err(|e| TurtleDocError {
+                                    message: e.to_string(),
+                                });
+                        }
+                        XSD_DECIMAL => {
+                            return n
+                                .value
+                                .parse::<f32>()
+                                .map(|f| Node::Literal(Literal::Decimal(f)))
+                                .map_err(|e| TurtleDocError {
+                                    message: e.to_string(),
+                                });
+                        }
+                        XSD_INTEGER => {
+                            return n
+                                .value
+                                .parse::<i64>()
+                                .map(|f| Node::Literal(Literal::Integer(f)))
+                                .map_err(|e| TurtleDocError {
+                                    message: e.to_string(),
+                                });
+                        }
+                        XSD_BOOLEAN => {
+                            return n
+                                .value
+                                .parse::<bool>()
+                                .map(|f| Node::Literal(Literal::Boolean(f)))
+                                .map_err(|e| TurtleDocError {
+                                    message: e.to_string(),
+                                });
+                        }
+                        _ => {
+                            return Ok(Node::Literal(Literal::Quoted {
+                                datatype: Some(Box::new(Node::Iri(Cow::Borrowed(dt)))),
+                                value: Cow::Borrowed(&n.value),
+                                lang: if let Some(lang) = &n.lang {
+                                    Some(lang.as_str())
+                                } else {
+                                    None
+                                },
+                            }))
+                        }
+                    },
+                    None => {
+                        return Ok(Node::Literal(Literal::Quoted {
+                            datatype: None,
+                            value: Cow::Borrowed(&n.value),
+                            lang: if let Some(lang) = &n.lang {
+                                Some(lang.as_str())
+                            } else {
+                                None
+                            },
+                        }))
+                    }
+                },
+                t => {
+                    return Err(TurtleDocError {
+                        message: format!("type {t} unknown"),
+                    });
+                }
+            }
+        }
+
+        fn rnr_to_node<'a>(n: &'a RdfJsonNodeResult) -> Result<Node<'a>, TurtleDocError> {
+            match n {
+                RdfJsonNodeResult::SingleNode(node) => return rjs_to_node(&node),
+                RdfJsonNodeResult::ListNodes(rnr_nodes) => {
+                    let mut nodes = vec![];
+                    for node in rnr_nodes.iter() {
+                        nodes.push(rnr_to_node(node)?);
+                    }
+                    return Ok(Node::List(nodes));
+                }
+            };
+        }
+
+        let stmt = Statement {
+            subject: rnr_to_node(&value.subject)?,
+            predicate: rnr_to_node(&value.predicate)?,
+            object: rnr_to_node(&value.object)?,
+        };
+        Ok(stmt)
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::turtle::turtle_doc::{Literal, Node, RdfJsonTriple, TurtleDoc};
+    use crate::{
+        shared::XSD_STRING,
+        turtle::turtle_doc::{Literal, Node, RdfJsonTriple, Statement, TurtleDoc},
+    };
     use std::borrow::Cow;
     use Cow::Borrowed;
     use Node::Iri;
+
+    use super::RdfJsonNodeResult;
 
     #[test]
     fn turtle_doc_test() {
@@ -951,5 +1065,42 @@ mod test {
         let json_triples: Vec<RdfJsonTriple> = (&turtle).into();
         assert_eq!(json_triples.len(), turtle.len());
         println!("{}", serde_json::to_string_pretty(&json_triples).unwrap());
+    }
+    #[test]
+    fn test_convert_rdf_triple_to_doc() {
+        let triple = RdfJsonTriple {
+            subject: RdfJsonNodeResult::SingleNode(super::RdfJsonNode {
+                typ: "uri".into(),
+                datatype: None,
+                lang: None,
+                value: "http://xx.com/xxx".into(),
+            }),
+            predicate: RdfJsonNodeResult::SingleNode(super::RdfJsonNode {
+                typ: "uri".into(),
+                datatype: None,
+                lang: None,
+                value: "http://xx.com/pred".into(),
+            }),
+            object: RdfJsonNodeResult::SingleNode(super::RdfJsonNode {
+                typ: "literal".into(),
+                datatype: Some(XSD_STRING.into()),
+                lang: None,
+                value: "hello".into(),
+            }),
+        };
+        let stmt: Statement = (&triple).try_into().unwrap();
+
+        let expected = Statement {
+            subject: Node::Iri(Cow::Borrowed("http://xx.com/xxx")),
+            predicate: Node::Iri(Cow::Borrowed("http://xx.com/pred")),
+            object: Node::Literal(Literal::Quoted {
+                datatype: Some(Box::new(Node::Iri(Cow::Borrowed(
+                    "http://www.w3.org/2001/XMLSchema#string",
+                )))),
+                value: Cow::Borrowed("hello"),
+                lang: None,
+            }),
+        };
+        assert_eq!(stmt, expected);
     }
 }
