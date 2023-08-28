@@ -676,7 +676,18 @@ impl From<&Node<'_>> for RdfJsonNodeResult {
                 value,
             }) => RdfJsonNodeResult::SingleNode(RdfJsonNode {
                 typ: typ_literal,
-                datatype: datatype.clone().map(|dt| dt.to_string()),
+                datatype: if let Some(datatype) = datatype {
+                    match datatype.as_ref() {
+                        Node::Iri(iri) => Some(iri.to_string()),
+                        Node::Ref(iri) => Some(iri.to_string()),
+                        other => {
+                            eprintln!("this is not a valid datatype {other:?}");
+                            None
+                        }
+                    }
+                } else {
+                    None
+                },
                 lang: lang.map(|l| l.to_string()),
                 value: value.to_string(),
             }),
@@ -1107,5 +1118,26 @@ mod test {
             }),
         };
         assert_eq!(stmt, expected);
+    }
+
+    #[test]
+    fn turtle_doc_to_json_bug_test() {
+        let doc = r#"
+                    @prefix foaf: <http://foaf.com/>.
+                    [ foaf:name "Alice" ] foaf:knows [
+                foaf:name "Bob" ;
+                foaf:description "\"c'est l'histoire de la vie\"\n"@fr;
+                foaf:lastName "George", "Joshua" ;
+                foaf:age 34;
+                foaf:knows [
+                    foaf:name "Eve" ] ;
+                foaf:mbox <bob@example.com>] .
+
+        "#;
+        let turtle: TurtleDoc = doc.try_into().unwrap();
+        let stmts = turtle.list_statements(None, None, None);
+        let rdfjs: RdfJsonTriple = stmts[0].try_into().unwrap();
+
+        dbg!(rdfjs);
     }
 }
