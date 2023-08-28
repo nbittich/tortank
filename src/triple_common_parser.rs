@@ -362,9 +362,11 @@ pub(crate) fn tag_no_case_no_space<'a>(s: &'a str) -> impl FnMut(&'a str) -> Par
 
 #[cfg(test)]
 mod test {
-    use crate::triple_common_parser::Iri;
+    use std::borrow::Cow;
 
-    use super::iri;
+    use crate::triple_common_parser::{Iri, Literal};
+
+    use super::{iri, literal::string_literal};
 
     #[test]
     fn test_parse_iri_escaped() {
@@ -391,5 +393,18 @@ mod test {
             res
         );
         println!("{res:?}");
+    }
+    #[test]
+    fn test_empty_string() {
+        let empty_str = r#""""#;
+        let (_, res) = string_literal(empty_str).unwrap();
+        assert_eq!(
+            Literal::Quoted {
+                datatype: Some(Iri::Enclosed("http://www.w3.org/2001/XMLSchema#string")),
+                value: Cow::Borrowed(""),
+                lang: None,
+            },
+            res
+        );
     }
 }
