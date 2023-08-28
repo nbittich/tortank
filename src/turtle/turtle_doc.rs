@@ -785,46 +785,46 @@ impl<'a> TryFrom<&'a RdfJsonTriple> for Statement<'a> {
     type Error = TurtleDocError;
 
     fn try_from(value: &'a RdfJsonTriple) -> Result<Self, Self::Error> {
-        fn rjs_to_node<'a>(n: &'a RdfJsonNode) -> Result<Node<'a>, TurtleDocError> {
+        fn rjs_to_node(n: &RdfJsonNode) -> Result<Node<'_>, TurtleDocError> {
             match n.typ.as_str() {
                 "uri" => return Ok(Node::Iri(Cow::Borrowed(&n.value))),
                 "literal" => match &n.datatype {
                     Some(dt) => match dt.as_str() {
                         XSD_DOUBLE => {
-                            return n
+                            n
                                 .value
                                 .parse::<f64>()
                                 .map(|f| Node::Literal(Literal::Double(f)))
                                 .map_err(|e| TurtleDocError {
                                     message: e.to_string(),
-                                });
+                                })
                         }
                         XSD_DECIMAL => {
-                            return n
+                            n
                                 .value
                                 .parse::<f32>()
                                 .map(|f| Node::Literal(Literal::Decimal(f)))
                                 .map_err(|e| TurtleDocError {
                                     message: e.to_string(),
-                                });
+                                })
                         }
                         XSD_INTEGER => {
-                            return n
+                            n
                                 .value
                                 .parse::<i64>()
                                 .map(|f| Node::Literal(Literal::Integer(f)))
                                 .map_err(|e| TurtleDocError {
                                     message: e.to_string(),
-                                });
+                                })
                         }
                         XSD_BOOLEAN => {
-                            return n
+                            n
                                 .value
                                 .parse::<bool>()
                                 .map(|f| Node::Literal(Literal::Boolean(f)))
                                 .map_err(|e| TurtleDocError {
                                     message: e.to_string(),
-                                });
+                                })
                         }
                         _ => {
                             return Ok(Node::Literal(Literal::Quoted {
@@ -851,16 +851,16 @@ impl<'a> TryFrom<&'a RdfJsonTriple> for Statement<'a> {
                     }
                 },
                 t => {
-                    return Err(TurtleDocError {
+                    Err(TurtleDocError {
                         message: format!("type {t} unknown"),
-                    });
+                    })
                 }
             }
         }
 
-        fn rnr_to_node<'a>(n: &'a RdfJsonNodeResult) -> Result<Node<'a>, TurtleDocError> {
+        fn rnr_to_node(n: &RdfJsonNodeResult) -> Result<Node<'_>, TurtleDocError> {
             match n {
-                RdfJsonNodeResult::SingleNode(node) => return rjs_to_node(&node),
+                RdfJsonNodeResult::SingleNode(node) => return rjs_to_node(node),
                 RdfJsonNodeResult::ListNodes(rnr_nodes) => {
                     let mut nodes = vec![];
                     for node in rnr_nodes.iter() {
