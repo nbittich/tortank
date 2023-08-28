@@ -87,17 +87,13 @@ impl RdfJsonTriple {
             message: e.to_string(),
         })
     }
-}
-
-impl<'a> TryFrom<&'a str> for RdfJsonNodeResult {
-    type Error = TurtleDocError;
-
-    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+    pub fn from_json(value: &str) -> Result<Vec<RdfJsonTriple>, TurtleDocError> {
         serde_json::from_str(value).map_err(|e| TurtleDocError {
             message: e.to_string(),
         })
     }
 }
+
 impl<'a> PartialEq for Node<'a> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -122,13 +118,26 @@ impl<'a> PartialEq for Node<'a> {
     }
 }
 
-impl<'a> TurtleDoc<'a> {
-    pub fn from_string(s: &'a str) -> Result<Self, TurtleDocError> {
+impl<'a> TryFrom<Vec<Statement<'a>>> for TurtleDoc<'a> {
+    type Error = TurtleDocError;
+    fn try_from(statements: Vec<Statement<'a>>) -> Result<Self, Self::Error> {
+        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()))?;
+        doc.statements.extend(statements);
+        Ok(doc)
+    }
+}
+impl<'a> TryFrom<&'a str> for TurtleDoc<'a> {
+    type Error = TurtleDocError;
+
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
         let (_, statements) = statements(s).map_err(|err| TurtleDocError {
             message: format!("parsing error: {err}"),
         })?;
         Self::new(statements)
     }
+}
+
+impl<'a> TurtleDoc<'a> {
     pub fn from_file(
         path: impl Into<PathBuf>,
         buf: &'a mut String,
@@ -140,14 +149,14 @@ impl<'a> TurtleDoc<'a> {
                 message: format!("file {path:?} doesn't exist or extension not n3/ttl"),
             });
         }
-        let mut file = File::open(path).map_err(|err| TurtleDocError {
+        let mut file = File::open(&path).map_err(|err| TurtleDocError {
             message: format!("cannot open file: {err}"),
         })?;
 
         file.read_to_string(buf).map_err(|err| TurtleDocError {
             message: format!("cannot read file: {err}"),
         })?;
-        Self::from_string(buf)
+        buf.as_str().try_into()
     }
 
     pub fn add_statement(&mut self, subject: Node<'a>, predicate: Node<'a>, object: Node<'a>) {
@@ -177,20 +186,20 @@ impl<'a> TurtleDoc<'a> {
             .cloned()
             .collect::<Vec<_>>();
 
-        TurtleDoc::from_statements(diff)
+        diff.try_into()
     }
 
     /// creates a new, indepependent, turtle_doc containing all statements that are in both this
     /// model and another
     pub fn intersection(&self, other: &TurtleDoc) -> Result<TurtleDoc, TurtleDocError> {
-        let diff = self
+        let intersection = self
             .statements
             .iter()
             .filter(|stmt| other.statements.iter().any(|stmt2| stmt == &stmt2))
             .cloned()
             .collect::<Vec<_>>();
 
-        TurtleDoc::from_statements(diff)
+        intersection.try_into()
     }
 
     pub fn parse_and_list_statements(
@@ -322,12 +331,6 @@ impl<'a> TurtleDoc<'a> {
             message: e.to_string(),
         })?;
         Ok(())
-    }
-
-    pub fn from_statements(statements: Vec<Statement<'a>>) -> Result<Self, TurtleDocError> {
-        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()))?;
-        doc.statements.extend(statements);
-        Ok(doc)
     }
 
     fn new(turtle_values: Vec<TurtleValue<'a>>) -> Result<Self, TurtleDocError> {
@@ -893,8 +896,8 @@ mod test {
     fn turtle_doc_test() {
         let doc = include_str!("example/input.ttl");
         let expected = include_str!("example/output.ttl");
-        let turtle = TurtleDoc::from_string(doc).unwrap();
-        let expected_turtle = TurtleDoc::from_string(expected).unwrap();
+        let turtle: TurtleDoc<'_> = doc.try_into().unwrap();
+        let expected_turtle: TurtleDoc<'_> = expected.try_into().unwrap();
         let expected_statements = expected_turtle.list_statements(None, None, None);
         let statements = turtle.list_statements(None, None, None);
         assert_eq!(&expected_statements.len(), &statements.len());
@@ -913,7 +916,9 @@ mod test {
     foaf:mbox <bob@example.com>] .
 
         "#;
-        let turtle = TurtleDoc::from_string(doc).unwrap();
+
+        let turtle: TurtleDoc<'_> = doc.try_into().unwrap();
+
         assert_eq!(8, turtle.statements.len());
     }
 
@@ -923,7 +928,7 @@ mod test {
         @prefix : <http://example.com/>.
         :a :b ( "apple" "banana" ) .
         "#;
-        let turtle = TurtleDoc::from_string(s).unwrap();
+        let turtle: TurtleDoc = s.try_into().unwrap();
         assert_eq!(5, turtle.statements.len());
     }
     #[test]
@@ -942,10 +947,10 @@ mod test {
     foaf:mbox <bob@example.com>] .
 
         "#;
-        let turtle1 = TurtleDoc::from_string(doc1).unwrap();
+        let turtle1: TurtleDoc = doc1.try_into().unwrap();
         assert_eq!(5, turtle1.statements.len());
 
-        let turtle2 = TurtleDoc::from_string(doc2).unwrap();
+        let turtle2: TurtleDoc = doc2.try_into().unwrap();
         assert_eq!(8, turtle2.statements.len());
 
         let turtle3 = turtle1 + turtle2;
@@ -971,7 +976,7 @@ mod test {
     foaf:mbox <bob@example.com>] .
 
         "#;
-        let turtle = TurtleDoc::from_string(doc).unwrap();
+        let turtle: TurtleDoc = doc.try_into().unwrap();
         let statements =
             turtle.list_statements(None, None, Some(&Iri(Borrowed("bob@example.com"))));
         assert_eq!(1, statements.len());
@@ -1006,7 +1011,7 @@ mod test {
          <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/specificGravity> "1.663E-4"^^<http://www.w3.org/2001/XMLSchema#double> .     # xsd:double
          "#;
 
-        let triples = TurtleDoc::from_string(triple).unwrap();
+        let triples: TurtleDoc = triple.try_into().unwrap();
         assert_eq!(triples.len(), 12);
     }
     #[test]
@@ -1026,7 +1031,9 @@ mod test {
          <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/specificGravity> "1123"^^<http://www.w3.org/2001/XMLSchema#integer> .     # xsd:double
          <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/nice> "true"^^<http://www.w3.org/2001/XMLSchema#boolean> .
          "#;
-        let triples = TurtleDoc::from_string(triples).unwrap();
+
+        let triples: TurtleDoc = triples.try_into().unwrap();
+
         assert_eq!(9, triples.len());
     }
 
@@ -1035,11 +1042,9 @@ mod test {
         let mut buf_a = String::new();
         let mut buf_b = String::new();
         let _doc = include_str!("example/input.ttl");
-        let expected = TurtleDoc::from_string(
-            r#"
+        let expected:TurtleDoc= r#"
         <mailto:person@example.net> <http://xmlns.com/foaf/0.1/name> "Anne Example-Person"^^<http://www.w3.org/2001/XMLSchema#string>
-        "#,
-        ).unwrap();
+        "#.try_into().unwrap();
         let turtle_a = TurtleDoc::from_file("tests/modelA.ttl", &mut buf_a).unwrap();
         let turtle_b = TurtleDoc::from_file("tests/modelB.ttl", &mut buf_b).unwrap();
         let diff = turtle_a.difference(&turtle_b).unwrap();
@@ -1061,7 +1066,7 @@ mod test {
                 foaf:mbox <bob@example.com>] .
 
         "#;
-        let turtle = TurtleDoc::from_string(doc).unwrap();
+        let turtle: TurtleDoc = doc.try_into().unwrap();
         let json_triples: Vec<RdfJsonTriple> = (&turtle).into();
         assert_eq!(json_triples.len(), turtle.len());
         println!("{}", serde_json::to_string_pretty(&json_triples).unwrap());
