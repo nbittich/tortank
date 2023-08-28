@@ -80,7 +80,17 @@ pub struct TurtleDoc<'a> {
     prefixes: BTreeMap<&'a str, &'a str>,
     statements: Vec<Statement<'a>>,
 }
-
+impl<'a> Statement<'a> {
+    pub fn from_rdf_json_triples(
+        triples: &'a [RdfJsonTriple],
+    ) -> Result<Vec<Statement<'a>>, TurtleDocError> {
+        let mut stmts = Vec::with_capacity(triples.len());
+        for triple in triples {
+            stmts.push(Statement::try_from(triple)?);
+        }
+        Ok(stmts)
+    }
+}
 impl RdfJsonTriple {
     pub fn to_json_string(&self) -> Result<String, TurtleDocError> {
         serde_json::to_string(self).map_err(|e| TurtleDocError {
@@ -790,42 +800,34 @@ impl<'a> TryFrom<&'a RdfJsonTriple> for Statement<'a> {
                 "uri" => return Ok(Node::Iri(Cow::Borrowed(&n.value))),
                 "literal" => match &n.datatype {
                     Some(dt) => match dt.as_str() {
-                        XSD_DOUBLE => {
-                            n
-                                .value
-                                .parse::<f64>()
-                                .map(|f| Node::Literal(Literal::Double(f)))
-                                .map_err(|e| TurtleDocError {
-                                    message: e.to_string(),
-                                })
-                        }
-                        XSD_DECIMAL => {
-                            n
-                                .value
-                                .parse::<f32>()
-                                .map(|f| Node::Literal(Literal::Decimal(f)))
-                                .map_err(|e| TurtleDocError {
-                                    message: e.to_string(),
-                                })
-                        }
-                        XSD_INTEGER => {
-                            n
-                                .value
-                                .parse::<i64>()
-                                .map(|f| Node::Literal(Literal::Integer(f)))
-                                .map_err(|e| TurtleDocError {
-                                    message: e.to_string(),
-                                })
-                        }
-                        XSD_BOOLEAN => {
-                            n
-                                .value
-                                .parse::<bool>()
-                                .map(|f| Node::Literal(Literal::Boolean(f)))
-                                .map_err(|e| TurtleDocError {
-                                    message: e.to_string(),
-                                })
-                        }
+                        XSD_DOUBLE => n
+                            .value
+                            .parse::<f64>()
+                            .map(|f| Node::Literal(Literal::Double(f)))
+                            .map_err(|e| TurtleDocError {
+                                message: e.to_string(),
+                            }),
+                        XSD_DECIMAL => n
+                            .value
+                            .parse::<f32>()
+                            .map(|f| Node::Literal(Literal::Decimal(f)))
+                            .map_err(|e| TurtleDocError {
+                                message: e.to_string(),
+                            }),
+                        XSD_INTEGER => n
+                            .value
+                            .parse::<i64>()
+                            .map(|f| Node::Literal(Literal::Integer(f)))
+                            .map_err(|e| TurtleDocError {
+                                message: e.to_string(),
+                            }),
+                        XSD_BOOLEAN => n
+                            .value
+                            .parse::<bool>()
+                            .map(|f| Node::Literal(Literal::Boolean(f)))
+                            .map_err(|e| TurtleDocError {
+                                message: e.to_string(),
+                            }),
                         _ => {
                             return Ok(Node::Literal(Literal::Quoted {
                                 datatype: Some(Box::new(Node::Iri(Cow::Borrowed(dt)))),
@@ -850,11 +852,9 @@ impl<'a> TryFrom<&'a RdfJsonTriple> for Statement<'a> {
                         }))
                     }
                 },
-                t => {
-                    Err(TurtleDocError {
-                        message: format!("type {t} unknown"),
-                    })
-                }
+                t => Err(TurtleDocError {
+                    message: format!("type {t} unknown"),
+                }),
             }
         }
 
