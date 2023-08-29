@@ -77,7 +77,7 @@ pub struct Statement<'a> {
 #[derive(PartialEq, PartialOrd, Debug, Default)]
 pub struct TurtleDoc<'a> {
     base: Option<&'a str>,
-    prefixes: BTreeMap<&'a str, &'a str>,
+    prefixes: BTreeMap<Cow<'a, str>, Cow<'a, str>>,
     statements: Vec<Statement<'a>>,
 }
 impl<'a> Statement<'a> {
@@ -187,6 +187,13 @@ impl<'a> TurtleDoc<'a> {
             self.statements.push(stmt);
         }
     }
+    pub fn add_prefixes(&mut self, prefixes: BTreeMap<String, String>) {
+        let prefixes: BTreeMap<Cow<str>, Cow<str>> = prefixes
+            .into_iter()
+            .map(|(k, v)| (Cow::Owned(k), Cow::Owned(v)))
+            .collect();
+        self.prefixes.extend(prefixes);
+    }
     pub fn len(&self) -> usize {
         self.statements.len()
     }
@@ -227,11 +234,7 @@ impl<'a> TurtleDoc<'a> {
         object: Option<String>,
     ) -> Result<Vec<&Statement>, TurtleDocError> {
         let mut statements: Vec<&Statement> = self.statements.iter().collect();
-        let prefixes: BTreeMap<Cow<str>, Cow<str>> = self
-            .prefixes
-            .iter()
-            .map(|(k, v)| (Cow::Borrowed(*k), Cow::Borrowed(*v)))
-            .collect();
+        let prefixes: BTreeMap<Cow<str>, Cow<str>> = self.prefixes.clone();
         let base = self.base.map(Cow::Borrowed);
 
         if let Some(subject) = subject {
@@ -257,8 +260,7 @@ impl<'a> TurtleDoc<'a> {
                 message: e.to_string(),
             })?;
 
-            let object =
-                &Self::simple_turtle_value_to_node(o, base.clone(), prefixes.clone(), true)?;
+            let object = &Self::simple_turtle_value_to_node(o, base.clone(), prefixes, true)?;
             statements.retain(|s| &s.object == object);
         }
 
@@ -383,7 +385,11 @@ impl<'a> TurtleDoc<'a> {
         Ok(TurtleDoc {
             base: context.base,
             statements,
-            prefixes: context.prefixes,
+            prefixes: context
+                .prefixes
+                .into_iter()
+                .map(|(k, v)| (Cow::Borrowed(k), (Cow::Borrowed(v))))
+                .collect(),
         })
     }
 
@@ -632,7 +638,7 @@ impl Add for TurtleDoc<'_> {
             }
         }
 
-        let prefixes: BTreeMap<&str, &str> =
+        let prefixes: BTreeMap<Cow<'_, str>, Cow<'_, str>> =
             self.prefixes.into_iter().chain(rhs.prefixes).collect();
         TurtleDoc {
             base: self.base,
