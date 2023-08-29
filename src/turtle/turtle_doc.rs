@@ -12,8 +12,8 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::fs::{File, OpenOptions};
-use std::io::prelude::*;
 use std::io::Read;
+use std::io::{prelude::*, BufReader};
 use std::num::{ParseFloatError, ParseIntError};
 use std::ops::Add;
 use std::path::PathBuf;
@@ -99,6 +99,14 @@ impl RdfJsonTriple {
     }
     pub fn from_json(value: &str) -> Result<Vec<RdfJsonTriple>, TurtleDocError> {
         serde_json::from_str(value).map_err(|e| TurtleDocError {
+            message: e.to_string(),
+        })
+    }
+    pub fn from_json_file(value: impl Into<PathBuf>) -> Result<Vec<RdfJsonTriple>, TurtleDocError> {
+        let file = File::open(value.into()).map_err(|e| TurtleDocError {
+            message: e.to_string(),
+        })?;
+        serde_json::from_reader(BufReader::new(file)).map_err(|e| TurtleDocError {
             message: e.to_string(),
         })
     }
