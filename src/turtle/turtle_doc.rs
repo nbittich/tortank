@@ -24,6 +24,7 @@ use uuid::Uuid;
 
 struct Context<'a> {
     base: Option<&'a str>,
+    well_known_prefix: String,
     prefixes: BTreeMap<&'a str, &'a str>,
 }
 #[derive(Serialize, PartialEq, Deserialize, Clone, Debug)]
@@ -79,6 +80,7 @@ pub struct Statement<'a> {
 }
 #[derive(PartialEq, PartialOrd, Debug, Default)]
 pub struct TurtleDoc<'a> {
+    well_known_prefix: String,
     base: Option<&'a str>,
     prefixes: BTreeMap<Cow<'a, str>, Cow<'a, str>>,
     statements: Vec<Statement<'a>>,
@@ -142,15 +144,15 @@ impl<'a> PartialEq for Node<'a> {
 impl<'a> TryFrom<Vec<Statement<'a>>> for TurtleDoc<'a> {
     type Error = TurtleDocError;
     fn try_from(statements: Vec<Statement<'a>>) -> Result<Self, Self::Error> {
-        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()))?;
+        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()), None)?;
         doc.statements.extend(statements);
         Ok(doc)
     }
 }
-impl<'a> TryFrom<&'a str> for TurtleDoc<'a> {
+impl<'a> TryFrom<(&'a str, Option<String>)> for TurtleDoc<'a> {
     type Error = TurtleDocError;
 
-    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+    fn try_from((s, prefix): (&'a str, Option<String>)) -> Result<Self, Self::Error> {
         let (res, statements) = statements(s).map_err(|err| TurtleDocError {
             message: format!("parsing error: {err}"),
         })?;
@@ -162,13 +164,14 @@ impl<'a> TryFrom<&'a str> for TurtleDoc<'a> {
                 message: format!("could not parse the doc completely: rest => {res}"),
             });
         }
-        Self::new(statements)
+        Self::new(statements, prefix)
     }
 }
 
 impl<'a> TurtleDoc<'a> {
     pub fn from_file(
         path: impl Into<PathBuf>,
+        well_known_prefix: Option<String>,
         buf: &'a mut String,
     ) -> Result<Self, TurtleDocError> {
         let path = path.into();
@@ -185,7 +188,7 @@ impl<'a> TurtleDoc<'a> {
         file.read_to_string(buf).map_err(|err| TurtleDocError {
             message: format!("cannot read file: {err}"),
         })?;
-        buf.as_str().try_into()
+        (buf.as_str(), well_known_prefix).try_into()
     }
 
     pub fn add_statement(&mut self, subject: Node<'a>, predicate: Node<'a>, object: Node<'a>) {
@@ -364,9 +367,15 @@ impl<'a> TurtleDoc<'a> {
         Ok(())
     }
 
-    fn new(turtle_values: Vec<TurtleValue<'a>>) -> Result<Self, TurtleDocError> {
+    fn new(
+        turtle_values: Vec<TurtleValue<'a>>,
+        well_known_prefix: Option<String>,
+    ) -> Result<Self, TurtleDocError> {
+        let well_known_prefix =
+            well_known_prefix.unwrap_or_else(|| DEFAULT_WELL_KNOWN_PREFIX.to_string());
         let mut context = Context {
             base: None,
+            well_known_prefix,
             prefixes: BTreeMap::new(),
         };
         let mut statements: Vec<Statement> = vec![];
@@ -395,6 +404,7 @@ impl<'a> TurtleDoc<'a> {
         }
         Ok(TurtleDoc {
             base: context.base,
+            well_known_prefix: context.well_known_prefix,
             statements,
             prefixes: context
                 .prefixes
@@ -545,6 +555,7 @@ impl<'a> TurtleDoc<'a> {
         ctx: &'x Context,
         statements: &'x mut Vec<Statement<'a>>,
     ) -> Result<Node<'a>, TurtleDocError> {
+        let well_known_prefix = ctx.well_known_prefix.as_str();
         match value {
             v @ TurtleValue::Iri(_) | v @ TurtleValue::Literal(_) => {
                 let prefixes: BTreeMap<Cow<str>, Cow<str>> = ctx
@@ -555,14 +566,12 @@ impl<'a> TurtleDoc<'a> {
                 let base = ctx.base.map(Cow::Borrowed);
                 Self::simple_turtle_value_to_node(v, base, prefixes, true)
             }
-            TurtleValue::BNode(BlankNode::Labeled(label)) => Ok(Node::Iri(Cow::Owned(
-                DEFAULT_WELL_KNOWN_PREFIX.to_owned() + label,
-            ))),
+            TurtleValue::BNode(BlankNode::Labeled(label)) => {
+                Ok(Node::Iri(Cow::Owned(well_known_prefix.to_owned() + label)))
+            }
             TurtleValue::BNode(BlankNode::Unlabeled) => {
                 let uuid = Uuid::new_v4().to_string();
-                Ok(Node::Iri(Cow::Owned(format!(
-                    "{DEFAULT_WELL_KNOWN_PREFIX}{uuid}"
-                ))))
+                Ok(Node::Iri(Cow::Owned(format!("{well_known_prefix}{uuid}"))))
             }
             TurtleValue::Statement {
                 subject,
@@ -689,6 +698,7 @@ impl Add for TurtleDoc<'_> {
         let prefixes: BTreeMap<Cow<'_, str>, Cow<'_, str>> =
             self.prefixes.into_iter().chain(rhs.prefixes).collect();
         TurtleDoc {
+            well_known_prefix: self.well_known_prefix,
             base: self.base,
             statements: statements.into_iter().collect(),
             prefixes,
@@ -980,8 +990,8 @@ mod test {
     fn turtle_doc_test() {
         let doc = include_str!("example/input.ttl");
         let expected = include_str!("example/output.ttl");
-        let turtle: TurtleDoc<'_> = doc.try_into().unwrap();
-        let expected_turtle: TurtleDoc<'_> = expected.try_into().unwrap();
+        let turtle: TurtleDoc<'_> = (doc, None).try_into().unwrap();
+        let expected_turtle: TurtleDoc<'_> = (expected, None).try_into().unwrap();
         let expected_statements = expected_turtle.list_statements(None, None, None);
         let statements = turtle.list_statements(None, None, None);
         assert_eq!(&expected_statements.len(), &statements.len());
@@ -1001,7 +1011,7 @@ mod test {
 
         "#;
 
-        let turtle: TurtleDoc<'_> = doc.try_into().unwrap();
+        let turtle: TurtleDoc<'_> = (doc, None).try_into().unwrap();
 
         assert_eq!(8, turtle.statements.len());
     }
@@ -1012,7 +1022,7 @@ mod test {
         @prefix : <http://example.com/>.
         :a :b ( "apple" "banana" ) .
         "#;
-        let turtle: TurtleDoc = s.try_into().unwrap();
+        let turtle: TurtleDoc = (s, None).try_into().unwrap();
         assert_eq!(5, turtle.statements.len());
     }
     #[test]
@@ -1031,10 +1041,10 @@ mod test {
     foaf:mbox <bob@example.com>] .
 
         "#;
-        let turtle1: TurtleDoc = doc1.try_into().unwrap();
+        let turtle1: TurtleDoc = (doc1, None).try_into().unwrap();
         assert_eq!(5, turtle1.statements.len());
 
-        let turtle2: TurtleDoc = doc2.try_into().unwrap();
+        let turtle2: TurtleDoc = (doc2, None).try_into().unwrap();
         assert_eq!(8, turtle2.statements.len());
 
         let turtle3 = turtle1 + turtle2;
@@ -1060,7 +1070,7 @@ mod test {
     foaf:mbox <bob@example.com>] .
 
         "#;
-        let turtle: TurtleDoc = doc.try_into().unwrap();
+        let turtle: TurtleDoc = (doc, None).try_into().unwrap();
         let statements =
             turtle.list_statements(None, None, Some(&Iri(Borrowed("bob@example.com"))));
         assert_eq!(1, statements.len());
@@ -1095,7 +1105,7 @@ mod test {
          <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/specificGravity> "1.663E-4"^^<http://www.w3.org/2001/XMLSchema#double> .     # xsd:double
          "#;
 
-        let triples: TurtleDoc = triple.try_into().unwrap();
+        let triples: TurtleDoc = (triple, None).try_into().unwrap();
         assert_eq!(triples.len(), 12);
     }
     #[test]
@@ -1116,7 +1126,7 @@ mod test {
          <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/nice> "true"^^<http://www.w3.org/2001/XMLSchema#boolean> .
          "#;
 
-        let triples: TurtleDoc = triples.try_into().unwrap();
+        let triples: TurtleDoc = (triples, None).try_into().unwrap();
 
         assert_eq!(9, triples.len());
     }
@@ -1126,11 +1136,11 @@ mod test {
         let mut buf_a = String::new();
         let mut buf_b = String::new();
         let _doc = include_str!("example/input.ttl");
-        let expected:TurtleDoc= r#"
+        let expected:TurtleDoc= (r#"
         <mailto:person@example.net> <http://xmlns.com/foaf/0.1/name> "Anne Example-Person"^^<http://www.w3.org/2001/XMLSchema#string>
-        "#.try_into().unwrap();
-        let turtle_a = TurtleDoc::from_file("tests/modelA.ttl", &mut buf_a).unwrap();
-        let turtle_b = TurtleDoc::from_file("tests/modelB.ttl", &mut buf_b).unwrap();
+        "#, None).try_into().unwrap();
+        let turtle_a = TurtleDoc::from_file("tests/modelA.ttl", None, &mut buf_a).unwrap();
+        let turtle_b = TurtleDoc::from_file("tests/modelB.ttl", None, &mut buf_b).unwrap();
         let diff = turtle_a.difference(&turtle_b).unwrap();
 
         dbg!(&expected);
@@ -1150,7 +1160,7 @@ mod test {
                 foaf:mbox <bob@example.com>] .
 
         "#;
-        let turtle: TurtleDoc = doc.try_into().unwrap();
+        let turtle: TurtleDoc = (doc, None).try_into().unwrap();
         let json_triples: Vec<RdfJsonTriple> = (&turtle).into();
         assert_eq!(json_triples.len(), turtle.len());
         println!("{}", serde_json::to_string_pretty(&json_triples).unwrap());
@@ -1207,7 +1217,7 @@ mod test {
                 foaf:mbox <bob@example.com>] .
 
         "#;
-        let turtle: TurtleDoc = doc.try_into().unwrap();
+        let turtle: TurtleDoc = (doc, None).try_into().unwrap();
         let stmts = turtle.list_statements(None, None, None);
         let rdfjs: RdfJsonTriple = stmts[0].try_into().unwrap();
 
@@ -1241,7 +1251,7 @@ mod test {
             "#
             );
             println!("testing {example}");
-            let doc = TurtleDoc::try_from(ttl.as_str());
+            let doc = TurtleDoc::try_from((ttl.as_str(), None));
             assert!(doc.is_ok());
         }
     }
