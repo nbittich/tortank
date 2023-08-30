@@ -1,12 +1,13 @@
 use crate::shared::{
-    DEFAULT_WELL_KNOWN_PREFIX, RDF_FIRST, RDF_NIL, RDF_REST, XSD_BOOLEAN, XSD_DECIMAL, XSD_DOUBLE,
-    XSD_INTEGER,
+    DATE_FORMATS, DEFAULT_WELL_KNOWN_PREFIX, RDF_FIRST, RDF_NIL, RDF_REST, XSD_BOOLEAN, XSD_DATE,
+    XSD_DATE_TIME, XSD_DECIMAL, XSD_DOUBLE, XSD_INTEGER,
 };
-use crate::triple_common_parser::Literal as ASTLiteral;
+use crate::triple_common_parser::{comments, Literal as ASTLiteral};
 use crate::triple_common_parser::{BlankNode, Iri};
 use crate::turtle::turtle_parser::{
     object as parse_obj, predicate as parse_pred, statements, subject as parse_sub, TurtleValue,
 };
+use chrono::{NaiveDate, NaiveDateTime};
 use serde_derive::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -60,6 +61,8 @@ pub enum Literal<'a> {
     Decimal(f32),
     Integer(i64),
     Boolean(bool),
+    Date(NaiveDate),
+    DateTime(NaiveDateTime),
 }
 #[derive(Debug, PartialOrd, Clone)]
 pub enum Node<'a> {
@@ -148,9 +151,17 @@ impl<'a> TryFrom<&'a str> for TurtleDoc<'a> {
     type Error = TurtleDocError;
 
     fn try_from(s: &'a str) -> Result<Self, Self::Error> {
-        let (_, statements) = statements(s).map_err(|err| TurtleDocError {
+        let (res, statements) = statements(s).map_err(|err| TurtleDocError {
             message: format!("parsing error: {err}"),
         })?;
+        let (res, _) = comments(res).map_err(|err| TurtleDocError {
+            message: format!("parsing error: {err}"),
+        })?;
+        if !res.trim().is_empty() {
+            return Err(TurtleDocError {
+                message: format!("could not parse the doc completely: rest => {res}"),
+            });
+        }
         Self::new(statements)
     }
 }
@@ -475,6 +486,43 @@ impl<'a> TurtleDoc<'a> {
                                 },
                             )?)))
                         }
+                        Some(Node::Iri(ref iri)) if iri == XSD_DATE => {
+                            let parse_from_str = NaiveDate::parse_from_str;
+
+                            let date = DATE_FORMATS
+                                .iter()
+                                .find_map(|f| parse_from_str(&value, f).ok());
+
+                            if let Some(date) = date {
+                                Ok(Node::Literal(Literal::Date(date)))
+                            } else {
+                                eprintln!("could not parse date {value}");
+                                Ok(Node::Literal(Literal::Quoted {
+                                    datatype: datatype.map(Box::new),
+                                    lang,
+                                    value,
+                                }))
+                            }
+                        }
+
+                        Some(Node::Iri(ref iri)) if iri == XSD_DATE_TIME => {
+                            let parse_from_str = NaiveDateTime::parse_from_str;
+
+                            let date = DATE_FORMATS
+                                .iter()
+                                .find_map(|f| parse_from_str(&value, f).ok());
+
+                            if let Some(date) = date {
+                                Ok(Node::Literal(Literal::DateTime(date)))
+                            } else {
+                                eprintln!("could not parse date time {value}");
+                                Ok(Node::Literal(Literal::Quoted {
+                                    datatype: datatype.map(Box::new),
+                                    lang,
+                                    value,
+                                }))
+                            }
+                        }
                         dt => Ok(Node::Literal(Literal::Quoted {
                             datatype: dt.map(Box::new),
                             lang,
@@ -730,9 +778,20 @@ impl From<&Node<'_>> for RdfJsonNodeResult {
                 lang: None,
                 value: d.to_string(),
             }),
+            Node::Literal(Literal::Date(d)) => RdfJsonNodeResult::SingleNode(RdfJsonNode {
+                typ: typ_literal,
+                datatype: Some(XSD_DATE.to_string()),
+                lang: None,
+                value: d.format("%Y-%m-%d").to_string(),
+            }),
+            Node::Literal(Literal::DateTime(d)) => RdfJsonNodeResult::SingleNode(RdfJsonNode {
+                typ: typ_literal,
+                datatype: Some(XSD_DATE.to_string()),
+                lang: None,
+                value: d.format("%+").to_string(),
+            }),
             Node::Ref(r) => r.as_ref().into(),
             Node::List(list) => {
-                // todo
                 let mut v: Vec<RdfJsonNodeResult> = Vec::with_capacity(list.len());
 
                 for node in list {
@@ -1153,5 +1212,37 @@ mod test {
         let rdfjs: RdfJsonTriple = stmts[0].try_into().unwrap();
 
         dbg!(rdfjs);
+    }
+
+    #[test]
+
+    fn parse_date_test() {
+        let examples = [
+            "2000-01-12T12:13:14Z",
+            "2002-10-10+13:00",
+            "2002-10-10T00:00:00+13",
+            "2002-10-09T11:00:00Z",
+            "2002-10-10T00:00:00+05:00",
+            "2002-10-09T19:00:00Z",
+            "2002-09-29",
+            "20-09-2021",
+            "09/20/2021",
+            "20/09/2012",
+            "2023-08-30T10:31:00.080Z",
+        ];
+
+        for example in examples {
+            let ttl = format!(
+                r#"
+            @prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+            @prefix test: <http://example.org/>.
+            
+            test:Date test:date "{example}"^^xsd:date.
+            "#
+            );
+            println!("testing {example}");
+            let doc = TurtleDoc::try_from(ttl.as_str());
+            assert!(doc.is_ok());
+        }
     }
 }

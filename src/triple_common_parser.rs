@@ -4,10 +4,10 @@ use crate::prelude::{
     char, delimited, line_ending, many0, multispace0, preceded, tag, tag_no_case, take_until,
     ParserResult,
 };
-pub const BASE_TURTLE: &str = "@base";
-pub const BASE_SPARQL: &str = "BASE";
-pub const PREFIX_TURTLE: &str = "@prefix";
-pub const PREFIX_SPARQL: &str = "PREFIX";
+pub static BASE_TURTLE: &str = "@base";
+pub static BASE_SPARQL: &str = "BASE";
+pub static PREFIX_TURTLE: &str = "@prefix";
+pub static PREFIX_SPARQL: &str = "PREFIX";
 
 #[derive(PartialEq, Debug)]
 pub enum Iri<'a> {
