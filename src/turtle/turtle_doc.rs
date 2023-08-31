@@ -160,6 +160,15 @@ impl<'a> TryFrom<&'a Vec<Statement<'a>>> for TurtleDoc<'a> {
         Ok(doc)
     }
 }
+impl<'a> TryFrom<Vec<&'a Statement<'a>>> for TurtleDoc<'a> {
+    type Error = TurtleDocError;
+    fn try_from(statements: Vec<&'a Statement<'a>>) -> Result<Self, Self::Error> {
+        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()), None)?;
+        let statements: Vec<Statement> = statements.into_iter().cloned().collect();
+        doc.statements.extend(statements);
+        Ok(doc)
+    }
+}
 impl<'a> TryFrom<(&'a str, Option<String>)> for TurtleDoc<'a> {
     type Error = TurtleDocError;
 
