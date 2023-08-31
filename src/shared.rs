@@ -24,4 +24,4 @@ pub static DATE_FORMATS: [&str; 9] = [
     "%m/%d/%Y",
     "%d/%m/%Y",
 ];
-pub static TIME_FORMATS: [&str; 4] = ["%H:%M:%S", "%H:%M:%S%Z", "%H:%M:%S%.3f%Z", "%H:%M"];
+pub static TIME_FORMATS: [&str; 4] = ["%H:%M:%S%.3f%Z", "%H:%M:%S%Z", "%H:%M:%S", "%H:%M"];
