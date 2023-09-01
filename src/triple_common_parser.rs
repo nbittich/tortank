@@ -114,12 +114,15 @@ pub(crate) mod prologue {
 pub(crate) mod literal {
     use std::borrow::Cow;
 
-    use crate::grammar::{LANGTAG, STRING_LITERAL_LONG_QUOTE, STRING_LITERAL_LONG_SINGLE_QUOTE};
+    use crate::grammar::{
+        LANGTAG, STRING_LITERAL_LONG_QUOTE, STRING_LITERAL_LONG_SINGLE_QUOTE, STRING_LITERAL_QUOTE,
+        STRING_LITERAL_SINGLE_QUOTE,
+    };
     use crate::prelude::*;
     use crate::shared::XSD_STRING;
     use crate::string_parser::parse_escaped_string;
     use crate::triple_common_parser::iri::iri;
-    use crate::triple_common_parser::{Iri, Literal};
+    use crate::triple_common_parser::{tag_no_space, Iri, Literal};
     pub(crate) fn parse_boolean<'a>(
         case_sensitive: bool,
     ) -> impl FnMut(&'a str) -> ParserResult<Literal<'a>> {
@@ -171,6 +174,7 @@ pub(crate) mod literal {
             take_until1(STRING_LITERAL_LONG_QUOTE),
             tag(STRING_LITERAL_LONG_QUOTE),
         );
+
         let mut datatype = preceded(tag("^^"), iri);
 
         fn lang(s: &str) -> ParserResult<&str> {
@@ -184,7 +188,34 @@ pub(crate) mod literal {
                     alt((long_quote_literal, long_single_quote_literal)),
                     Cow::Borrowed,
                 ),
-                parse_escaped_string,
+                alt((
+                    delimited(
+                        tag(STRING_LITERAL_SINGLE_QUOTE),
+                        parse_escaped_string,
+                        tag(STRING_LITERAL_SINGLE_QUOTE),
+                    ),
+                    delimited(
+                        tag(STRING_LITERAL_QUOTE),
+                        parse_escaped_string,
+                        tag(STRING_LITERAL_QUOTE),
+                    ),
+                )),
+                map(
+                    delimited(
+                        tag_no_space(STRING_LITERAL_QUOTE),
+                        take_until(STRING_LITERAL_QUOTE),
+                        tag_no_space(STRING_LITERAL_QUOTE),
+                    ),
+                    Cow::Borrowed,
+                ),
+                map(
+                    delimited(
+                        tag_no_space(STRING_LITERAL_SINGLE_QUOTE),
+                        take_until(STRING_LITERAL_SINGLE_QUOTE),
+                        tag_no_space(STRING_LITERAL_SINGLE_QUOTE),
+                    ),
+                    Cow::Borrowed,
+                ),
             )),
         )(s)?;
 
@@ -405,6 +436,53 @@ mod test {
                 lang: None,
             },
             res
+        );
+    }
+
+    #[test]
+    fn test_string_delimit_bugs() {
+        let s = r#"'"s"'"#;
+        let (_, res) = string_literal(s).unwrap();
+        assert_eq!(
+            res,
+            Literal::Quoted {
+                datatype: Some(Iri::Enclosed("http://www.w3.org/2001/XMLSchema#string")),
+                value: Cow::Borrowed(r#""s""#),
+                lang: None,
+            },
+        );
+
+        let s = r#""'s'""#;
+        let (_, res) = string_literal(s).unwrap();
+        assert_eq!(
+            res,
+            Literal::Quoted {
+                datatype: Some(Iri::Enclosed("http://www.w3.org/2001/XMLSchema#string")),
+                value: Cow::Borrowed(r#"'s'"#),
+                lang: None,
+            },
+        );
+
+        let s = r#""""'s'""""#;
+        let (_, res) = string_literal(s).unwrap();
+        assert_eq!(
+            res,
+            Literal::Quoted {
+                datatype: Some(Iri::Enclosed("http://www.w3.org/2001/XMLSchema#string")),
+                value: Cow::Borrowed(r#"'s'"#),
+                lang: None,
+            },
+        );
+
+        let s = r#"'''"s"'''"#;
+        let (_, res) = string_literal(s).unwrap();
+        assert_eq!(
+            res,
+            Literal::Quoted {
+                datatype: Some(Iri::Enclosed("http://www.w3.org/2001/XMLSchema#string")),
+                value: Cow::Borrowed(r#""s""#),
+                lang: None,
+            },
         );
     }
 }
