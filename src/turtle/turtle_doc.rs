@@ -1318,4 +1318,14 @@ mod test {
             assert!(doc.is_ok());
         }
     }
+    #[test]
+    fn test_complex_str() {
+        let s = include_str!("../../tests/49468c90-530b-11ee-8801-054ea2d949db.ttl");
+        let doc = TurtleDoc::try_from((s, None)).unwrap();
+        let stmts = doc.list_statements(Some(&Node::Iri(Cow::Borrowed("https://bree-echo.cipalschaubroeck.be/id/documenten/100b95c5-e76b-4d98-9b93-80d5f6efd3b0"))), 
+            Some(&Node::Iri(Cow::Borrowed("http://www.w3.org/ns/prov#value"))), None);
+        let stmt = stmts[0];
+        let object = &stmt.object;
+        println!("{}", object);
+    }
 }
