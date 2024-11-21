@@ -1,13 +1,14 @@
 use crate::shared::{
-    DATE_FORMATS, DEFAULT_WELL_KNOWN_PREFIX, RDF_FIRST, RDF_NIL, RDF_REST, TIME_FORMATS,
-    XSD_BOOLEAN, XSD_DATE, XSD_DATE_TIME, XSD_DECIMAL, XSD_DOUBLE, XSD_INTEGER, XSD_TIME,
+    DATE_FORMATS, DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, DEFAULT_TIME_FORMAT,
+    DEFAULT_WELL_KNOWN_PREFIX, RDF_FIRST, RDF_NIL, RDF_REST, TIME_FORMATS, XSD_BOOLEAN, XSD_DATE,
+    XSD_DATE_TIME, XSD_DECIMAL, XSD_DOUBLE, XSD_INTEGER, XSD_TIME,
 };
 use crate::triple_common_parser::{comments, Literal as ASTLiteral};
 use crate::triple_common_parser::{BlankNode, Iri};
 use crate::turtle::turtle_parser::{
     object as parse_obj, predicate as parse_pred, statements, subject as parse_sub, TurtleValue,
 };
-use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{DateTime, FixedOffset};
 use serde_derive::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -62,9 +63,9 @@ pub enum Literal<'a> {
     Decimal(f32),
     Integer(i64),
     Boolean(bool),
-    Date(NaiveDate),
-    DateTime(NaiveDateTime),
-    Time(NaiveTime),
+    Date(DateTime<FixedOffset>),
+    DateTime(DateTime<FixedOffset>),
+    Time(DateTime<FixedOffset>),
 }
 #[derive(Debug, PartialOrd, Clone)]
 pub enum Node<'a> {
@@ -155,7 +156,7 @@ impl<'a> TryFrom<&'a Vec<Statement<'a>>> for TurtleDoc<'a> {
     type Error = TurtleDocError;
     fn try_from(statements: &Vec<Statement<'a>>) -> Result<Self, Self::Error> {
         let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()), None)?;
-        let statements: Vec<Statement> = statements.into_iter().cloned().collect();
+        let statements: Vec<Statement> = statements.to_vec();
         doc.statements.extend(statements);
         Ok(doc)
     }
@@ -517,7 +518,7 @@ impl<'a> TurtleDoc<'a> {
                             )?)))
                         }
                         Some(Node::Iri(ref iri)) if iri == XSD_DATE => {
-                            let parse_from_str = NaiveDate::parse_from_str;
+                            let parse_from_str = DateTime::parse_from_str;
 
                             let date = DATE_FORMATS
                                 .iter()
@@ -526,7 +527,6 @@ impl<'a> TurtleDoc<'a> {
                             if let Some(date) = date {
                                 Ok(Node::Literal(Literal::Date(date)))
                             } else {
-                                eprintln!("could not parse date {value}");
                                 Ok(Node::Literal(Literal::Quoted {
                                     datatype: datatype.map(Box::new),
                                     lang,
@@ -536,7 +536,7 @@ impl<'a> TurtleDoc<'a> {
                         }
 
                         Some(Node::Iri(ref iri)) if iri == XSD_TIME => {
-                            let parse_from_str = NaiveTime::parse_from_str;
+                            let parse_from_str = DateTime::parse_from_str;
 
                             let date = TIME_FORMATS
                                 .iter()
@@ -545,7 +545,6 @@ impl<'a> TurtleDoc<'a> {
                             if let Some(date) = date {
                                 Ok(Node::Literal(Literal::Time(date)))
                             } else {
-                                eprintln!("could not parse time {value}");
                                 Ok(Node::Literal(Literal::Quoted {
                                     datatype: datatype.map(Box::new),
                                     lang,
@@ -554,7 +553,7 @@ impl<'a> TurtleDoc<'a> {
                             }
                         }
                         Some(Node::Iri(ref iri)) if iri == XSD_DATE_TIME => {
-                            let parse_from_str = NaiveDateTime::parse_from_str;
+                            let parse_from_str = DateTime::parse_from_str;
 
                             let date = DATE_FORMATS
                                 .iter()
@@ -563,7 +562,6 @@ impl<'a> TurtleDoc<'a> {
                             if let Some(date) = date {
                                 Ok(Node::Literal(Literal::DateTime(date)))
                             } else {
-                                eprintln!("could not parse date time {value}");
                                 Ok(Node::Literal(Literal::Quoted {
                                     datatype: datatype.map(Box::new),
                                     lang,
@@ -864,8 +862,8 @@ impl From<&Node<'_>> for RdfJsonNodeResult {
 impl Display for Node<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Node::Iri(iri) => f.write_str(&format!("<{}>", iri)),
-            Node::Ref(iri) => f.write_str(&format!("{}", iri)),
+            Node::Iri(iri) => write!(f, "<{iri}>"),
+            Node::Ref(iri) => write!(f, "{iri}"),
             Node::Literal(Literal::Quoted {
                 datatype,
                 lang,
@@ -877,21 +875,35 @@ impl Display for Node<'_> {
                 } else if let Some(lang) = lang {
                     s.push_str(&format!(r#"@{lang}"#));
                 }
-                f.write_str(&s)
+                write!(f, "{s}")
             }
             Node::Literal(Literal::Integer(i)) => {
-                f.write_str(&format!(r#""{i}"^^<{}>"#, XSD_INTEGER))
+                write!(f, r#""{i}"^^<{XSD_INTEGER}>"#)
             }
             Node::Literal(Literal::Decimal(d)) => {
-                f.write_str(&format!(r#""{d}"^^<{}>"#, XSD_DECIMAL))
+                write!(f, r#""{d}"^^<{}>"#, XSD_DECIMAL)
             }
             Node::Literal(Literal::Double(d)) => {
-                f.write_str(&format!(r#""{d}"^^<{}>"#, XSD_DOUBLE))
+                write!(f, r#""{d}"^^<{}>"#, XSD_DOUBLE)
             }
             Node::Literal(Literal::Boolean(d)) => {
-                f.write_str(&format!(r#""{d}"^^<{}>"#, XSD_BOOLEAN))
+                write!(f, r#""{d}"^^<{}>"#, XSD_BOOLEAN)
             }
-            _ => Err(std::fmt::Error),
+            Node::Literal(Literal::Date(d)) => {
+                write!(f, r#""{}"^^<{}>"#, d.format(DEFAULT_DATE_FORMAT), XSD_DATE)
+            }
+            Node::Literal(Literal::DateTime(d)) => write!(
+                f,
+                r#""{}"^^<{}>"#,
+                d.format(DEFAULT_DATE_TIME_FORMAT),
+                XSD_DATE_TIME
+            ),
+            Node::Literal(Literal::Time(d)) => {
+                write!(f, r#""{}"^^<{}>"#, d.format(DEFAULT_TIME_FORMAT), XSD_TIME)
+            }
+            Node::List(list) => {
+                panic!("encountered node list where we shouldn't {list:?}");
+            }
         }
     }
 }
@@ -903,15 +915,16 @@ impl Display for Statement<'_> {
             predicate,
             object,
         } = self;
-        f.write_str(&format!(r#"{subject} {predicate} {object}."#))
+        write!(f, r#"{subject} {predicate} {object}."#)
     }
 }
 
 impl Display for TurtleDoc<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(
-            &self
-                .statements
+        write!(
+            f,
+            "{}",
+            self.statements
                 .iter()
                 .map(Statement::to_string)
                 .collect::<Vec<String>>()
@@ -926,7 +939,7 @@ pub struct TurtleDocError {
 }
 impl Display for TurtleDocError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!("error: {}", self.message))
+        write!(f, "error: {}", self.message)
     }
 }
 
@@ -1175,7 +1188,20 @@ mod test {
 
         assert_eq!(9, triples.len());
     }
+    #[test]
+    fn turtle_doc_diff_buggy() {
+        let mut buf_a = String::new();
+        let mut buf_b = String::new();
+        let mut buf_e = String::new();
+        let turtle_a = TurtleDoc::from_file("tests/modelD.ttl", None, &mut buf_a).unwrap();
+        let turtle_b = TurtleDoc::from_file("tests/modelE.ttl", None, &mut buf_b).unwrap();
+        let expected =
+            TurtleDoc::from_file("tests/expectedDiffDAndE.ttl", None, &mut buf_e).unwrap();
+        let diff = turtle_a.difference(&turtle_b).unwrap();
 
+        assert!(!diff.to_string().is_empty());
+        assert_eq!(diff, expected);
+    }
     #[test]
     fn turtle_doc_diff_test() {
         let mut buf_a = String::new();
@@ -1264,7 +1290,7 @@ mod test {
         "#;
         let turtle: TurtleDoc = (doc, None).try_into().unwrap();
         let stmts = turtle.list_statements(None, None, None);
-        let rdfjs: RdfJsonTriple = stmts[0].try_into().unwrap();
+        let rdfjs: RdfJsonTriple = stmts[0].into();
 
         dbg!(rdfjs);
     }

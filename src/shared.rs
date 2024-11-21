@@ -25,3 +25,6 @@ pub static DATE_FORMATS: [&str; 9] = [
     "%d/%m/%Y",
 ];
 pub static TIME_FORMATS: [&str; 4] = ["%H:%M:%S%.3f%Z", "%H:%M:%S%Z", "%H:%M:%S", "%H:%M"];
+pub const DEFAULT_DATE_TIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.3f%Z";
+pub const DEFAULT_DATE_FORMAT: &str = "%Y-%m-%d";
+pub const DEFAULT_TIME_FORMAT: &str = "%H:%M:%S%.3f%Z";

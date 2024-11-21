@@ -124,7 +124,7 @@ where
 
 /// Parse a string. Use a loop of parse_fragment and push all of the fragments
 /// into an output string.
-pub(crate) fn parse_escaped_string<'a>(input: &'a str) -> ParserResult<Cow<'a, str>> {
+pub(crate) fn parse_escaped_string(input: &str) -> ParserResult<Cow<'_, str>> {
     // fold_many0 is the equivalent of iterator::fold. It runs a parser in a loop,
     // and for each output value, calls a folding function on each output value.
     let build_string = || {
