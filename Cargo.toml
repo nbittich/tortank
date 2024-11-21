@@ -12,12 +12,12 @@ repository = "https://github.com/nbittich/tortank"
 
 [dependencies]
 nom = "7.1.3"
-serde = "1.0.196"
-serde_derive = "1.0.196"
-uuid = { version = "1.7.0", features = ["v4"] }
+serde = "1.0.215"
+serde_derive = "1.0.215"
+uuid = { version = "1.11.0", features = ["v4"] }
 
-serde_json = "1.0.112"
-chrono = "0.4.33"
+serde_json = "1.0.133"
+chrono = "0.4.38"
 
 # The profile that 'cargo dist' will build with
 [profile.release]
