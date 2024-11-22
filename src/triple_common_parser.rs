@@ -285,9 +285,10 @@ pub(crate) mod triple {
         )
     }
     pub(crate) fn ns_type(s: &str) -> ParserResult<Iri> {
-        map(terminated(char('a'), multispace1), |_| {
-            Iri::Enclosed(NS_TYPE)
-        })(s)
+        map(
+            preceded(multispace0, terminated(char('a'), multispace1)),
+            |_| Iri::Enclosed(NS_TYPE),
+        )(s)
     }
     pub(crate) fn predicate_list<'a, F1, F2, F3, F4, F5, T>(
         subject_extractor: F1,

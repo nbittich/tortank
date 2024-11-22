@@ -1189,6 +1189,18 @@ mod test {
         assert_eq!(9, triples.len());
     }
     #[test]
+    fn turtle_doc_could_not_parse_completely() {
+        let mut buf_c = String::new();
+        let mut buf_f = String::new();
+        let turtle_c = TurtleDoc::from_file("tests/modelC.ttl", None, &mut buf_c).unwrap();
+        let turtle_f = TurtleDoc::from_file("tests/modelF.ttl", None, &mut buf_f).unwrap();
+
+        assert!(!turtle_c.to_string().is_empty());
+        assert_eq!(39, turtle_c.len());
+        assert_eq!(0, turtle_c.difference(&turtle_f).unwrap().len());
+    }
+
+    #[test]
     fn turtle_doc_diff_buggy() {
         let mut buf_a = String::new();
         let mut buf_b = String::new();
