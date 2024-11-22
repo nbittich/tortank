@@ -1,0 +1,104 @@
+@prefix ex: <http://example.org/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+# Basic triples with mixed vocabularies
+ex:Book1 a ex:Book ;
+    dc:title "Complex RDF Document Design"@en ;
+    dc:creator [
+        a foaf:Person ;
+        foaf:name "Jane Doe" ;
+        foaf:mbox <mailto:jane.doe@example.org>
+    ] ;
+    dc:date "2024-11-22"^^xsd:date ;
+    ex:hasISBN "978-3-16-148410-0"^^xsd:string ;
+    ex:relatedTo ex:Book2, ex:Book3 .
+
+# Nested blank nodes and custom datatypes
+ex:Book2 a ex:Book ;
+    dc:title "Advanced RDF Features"@en ;
+    ex:metadata [
+        ex:confidence "0.98"^^xsd:decimal ;
+        ex:reviewedBy [
+            a foaf:Person ;
+            foaf:name "John Reviewer" ;
+            foaf:affiliation "Tech Reviews Inc."
+        ] ;
+        ex:keywords ("RDF" "Turtle" "Semantic Web")
+    ] .
+
+# Reification for a statement
+ex:Statement1 a rdf:Statement ;
+    rdf:subject ex:Book1 ;
+    rdf:predicate ex:relatedTo ;
+    rdf:object ex:Book3 ;
+    prov:generatedAtTime "2024-11-22T12:00:00Z"^^xsd:dateTime ;
+    prov:wasAttributedTo ex:Agent1 .
+
+ex:Agent1 a prov:Agent ;
+    foaf:name "Semantic Generator Bot" ;
+    ex:apiVersion "1.0.0"^^xsd:string .
+
+# Owl and logical constructs
+ex:Book a owl:Class ;
+    rdfs:subClassOf [
+        a owl:Restriction ;
+        owl:onProperty ex:hasISBN ;
+        owl:allValuesFrom xsd:string
+    ] .
+
+ex:hasISBN a owl:DatatypeProperty ;
+    rdfs:label "International Standard Book Number"@en ;
+    rdfs:domain ex:Book ;
+    rdfs:range xsd:string .
+
+# Multilingual literals and lists
+ex:Book3 a ex:Book ;
+    dc:title "Learning RDF with Examples"@en, "Apprendre RDF avec des exemples"@fr ;
+    ex:chapters (
+        [ dc:title "Introduction to RDF"@en ]
+        [ dc:title "Complex Data Structures"@en ]
+        [ dc:title "Advanced Topics"@en ]
+    ) ;
+    ex:publishedBy [
+        foaf:name "RDF Publishers" ;
+        foaf:homepage <http://example.org/publishers/rdf>
+    ] .
+
+# Complex graph structures
+ex:ResearchPaper1 a ex:Document ;
+    dc:title "On the Formal Semantics of RDF" ;
+    ex:cites ex:Book1, ex:Book2, ex:Book3 ;
+    ex:authoredBy [
+        a foaf:Person ;
+        foaf:name "Alice Smith" ;
+        foaf:mbox <mailto:alice.smith@university.edu> ;
+        foaf:knows [
+            a foaf:Person ;
+            foaf:name "Jane Doe" ;
+            foaf:mbox <mailto:jane.doe@example.org>
+        ]
+    ] .
+
+# Inference example
+ex:Publisher a owl:Class ;
+    owl:equivalentClass [
+        a owl:Class ;
+        owl:intersectionOf (
+            [
+                a owl:Restriction ;
+                owl:onProperty foaf:homepage ;
+                owl:someValuesFrom xsd:anyURI
+            ]
+            [
+                a owl:Restriction ;
+                owl:onProperty foaf:name ;
+                owl:allValuesFrom xsd:string
+            ]
+        )
+    ] .
