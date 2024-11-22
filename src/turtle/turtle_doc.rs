@@ -21,7 +21,22 @@ use std::ops::Add;
 use std::path::PathBuf;
 use std::str::ParseBoolError;
 use std::sync::Arc;
-use uuid::Uuid;
+
+#[cfg(test)]
+static FAKE_UUID_GEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+#[cfg(not(test))]
+fn get_uuid() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
+#[cfg(test)]
+fn get_uuid() -> String {
+    FAKE_UUID_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    format!(
+        "{}",
+        FAKE_UUID_GEN.load(std::sync::atomic::Ordering::SeqCst)
+    )
+}
 
 struct Context<'a> {
     base: Option<&'a str>,
@@ -606,7 +621,7 @@ impl<'a> TurtleDoc<'a> {
                 Ok(Node::Iri(Cow::Owned(well_known_prefix.to_owned() + label)))
             }
             TurtleValue::BNode(BlankNode::Unlabeled) => {
-                let uuid = Uuid::new_v4().to_string();
+                let uuid = get_uuid();
                 Ok(Node::Iri(Cow::Owned(format!("{well_known_prefix}{uuid}"))))
             }
             TurtleValue::Statement {
@@ -1036,8 +1051,9 @@ impl<'a> TryFrom<&'a RdfJsonTriple> for Statement<'a> {
 mod test {
     use crate::{
         shared::XSD_STRING,
-        turtle::turtle_doc::{Literal, Node, RdfJsonTriple, Statement, TurtleDoc},
+        turtle::turtle_doc::{Literal, Node, RdfJsonTriple, Statement, TurtleDoc, FAKE_UUID_GEN},
     };
+    use serial_test::serial;
     use std::borrow::Cow;
     use Cow::Borrowed;
     use Node::Iri;
@@ -1045,6 +1061,7 @@ mod test {
     use super::RdfJsonNodeResult;
 
     #[test]
+    #[serial]
     fn turtle_doc_test() {
         let doc = include_str!("example/input.ttl");
         let expected = include_str!("example/output.ttl");
@@ -1057,6 +1074,7 @@ mod test {
         assert_eq!(expected_turtle.to_string(), turtle.to_string());
     }
     #[test]
+    #[serial]
     fn turtle_doc_bnode_test() {
         let doc = r#"
         @prefix foaf: <http://foaf.com/>.
@@ -1075,6 +1093,7 @@ mod test {
     }
 
     #[test]
+    #[serial]
     fn turtle_doc_collection_test() {
         let s = r#"
         @prefix : <http://example.com/>.
@@ -1084,6 +1103,7 @@ mod test {
         assert_eq!(5, turtle.statements.len());
     }
     #[test]
+    #[serial]
     fn turtle_doc_add_test() {
         let doc1 = r#"
         @prefix : <http://example.com/>.
@@ -1116,7 +1136,9 @@ mod test {
         let turtle4 = turtle + turtle3;
         assert_eq!(14, turtle4.statements.len());
     }
+
     #[test]
+    #[serial]
     fn turtle_doc_list_statements_test() {
         let doc = r#"
         @prefix foaf: <http://foaf.com/>.
@@ -1139,6 +1161,7 @@ mod test {
     }
 
     #[test]
+    #[serial]
     fn parse_test() {
         let triple = r#"
         # this is a comment
@@ -1166,7 +1189,9 @@ mod test {
         let triples: TurtleDoc = (triple, None).try_into().unwrap();
         assert_eq!(triples.len(), 12);
     }
+
     #[test]
+    #[serial]
     fn test_multi_comments() {
         let triples = r#"
             #  the entire line is commented <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
@@ -1188,7 +1213,21 @@ mod test {
 
         assert_eq!(9, triples.len());
     }
+
     #[test]
+    #[serial]
+    fn complex_test() {
+        FAKE_UUID_GEN.store(0, std::sync::atomic::Ordering::SeqCst);
+        let mut buf_c = String::new();
+        let mut buf_e = String::new();
+
+        let turtle_c = TurtleDoc::from_file("tests/complex.ttl", None, &mut buf_c).unwrap();
+        let turtle_expected =
+            TurtleDoc::from_file("tests/expected_complex.ttl", None, &mut buf_e).unwrap();
+        assert_eq!(turtle_c.difference(&turtle_expected).unwrap().len(), 0);
+    }
+    #[test]
+    #[serial]
     fn turtle_doc_could_not_parse_completely() {
         let mut buf_c = String::new();
         let mut buf_f = String::new();
@@ -1201,6 +1240,7 @@ mod test {
     }
 
     #[test]
+    #[serial]
     fn turtle_doc_diff_buggy() {
         let mut buf_a = String::new();
         let mut buf_b = String::new();
@@ -1214,7 +1254,9 @@ mod test {
         assert!(!diff.to_string().is_empty());
         assert_eq!(diff, expected);
     }
+
     #[test]
+    #[serial]
     fn turtle_doc_diff_test() {
         let mut buf_a = String::new();
         let mut buf_b = String::new();
@@ -1229,7 +1271,9 @@ mod test {
         dbg!(&expected);
         assert_eq!(diff, expected);
     }
+
     #[test]
+    #[serial]
     fn turtle_doc_to_json_test() {
         let doc = r#"
                     @prefix foaf: <http://foaf.com/>.
@@ -1248,7 +1292,9 @@ mod test {
         assert_eq!(json_triples.len(), turtle.len());
         println!("{}", serde_json::to_string_pretty(&json_triples).unwrap());
     }
+
     #[test]
+    #[serial]
     fn test_convert_rdf_triple_to_doc() {
         let triple = RdfJsonTriple {
             subject: RdfJsonNodeResult::SingleNode(super::RdfJsonNode {
@@ -1287,6 +1333,7 @@ mod test {
     }
 
     #[test]
+    #[serial]
     fn turtle_doc_to_json_bug_test() {
         let doc = r#"
                     @prefix foaf: <http://foaf.com/>.
@@ -1308,6 +1355,7 @@ mod test {
     }
 
     #[test]
+    #[serial]
     fn parse_date_test() {
         let examples = [
             "2000-01-12T12:13:14Z",
@@ -1339,6 +1387,7 @@ mod test {
     }
 
     #[test]
+    #[serial]
     fn parse_time_test() {
         let examples = ["00:00:00", "18:00"];
         for example in examples {
@@ -1356,7 +1405,9 @@ mod test {
             assert!(doc.is_ok());
         }
     }
+
     #[test]
+    #[serial]
     fn test_complex_str() {
         let s = include_str!("../../tests/49468c90-530b-11ee-8801-054ea2d949db.ttl");
         let doc = TurtleDoc::try_from((s, None)).unwrap();

@@ -1,0 +1,50 @@
+<http://example.org/ns#ComplexResource> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/ns#Type1>.
+<http://example.org/ns#ComplexResource> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/ns#Type2>.
+<http://example.org/ns#ComplexResource> <http://xmlns.com/foaf/0.1/name> "Complex Resource"^^<http://www.w3.org/2001/XMLSchema#string>.
+<http://example.org/ns#ComplexResource> <http://purl.org/dc/elements/1.1/created> "2024-11-22T12:34:56Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>.
+<http://example.org/ns#ComplexResource> <http://example.org/ns#hasValue> "42"^^<http://www.w3.org/2001/XMLSchema#integer>.
+<http://example.org/ns#ComplexResource> <http://example.org/ns#hasValue> "forty-two"@en.
+<http://example.org/.well-known/genid#1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/ns#NestedType>.
+<http://example.org/.well-known/genid#1> <http://example.org/ns#nestedProperty> "Nested Value"^^<http://www.w3.org/2001/XMLSchema#string>.
+<http://example.org/.well-known/genid#1> <http://example.org/ns#linksTo> <http://example.org/another-resource>.
+<http://example.org/ns#ComplexResource> <http://example.org/ns#hasNestedObject> <http://example.org/.well-known/genid#1>.
+<http://example.org/.well-known/genid#2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Item1"^^<http://www.w3.org/2001/XMLSchema#string>.
+<http://example.org/.well-known/genid#3> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Item2"^^<http://www.w3.org/2001/XMLSchema#string>.
+<http://example.org/.well-known/genid#5> <http://example.org/ns#innerProperty> "Inner Value"^^<http://www.w3.org/2001/XMLSchema#string>.
+<http://example.org/.well-known/genid#4> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/.well-known/genid#5>.
+<http://example.org/.well-known/genid#4> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil>.
+<http://example.org/.well-known/genid#3> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://example.org/.well-known/genid#4>.
+<http://example.org/.well-known/genid#2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://example.org/.well-known/genid#3>.
+<http://example.org/ns#ComplexResource> <http://example.org/ns#hasCollection> <http://example.org/.well-known/genid#2>.
+<http://example.org/ns#ComplexResource> <http://www.w3.org/2004/02/skos/core#note> "This resource demonstrates a variety of RDF features."@en.
+<http://example.org/ns#ComplexResource> <http://www.w3.org/2002/07/owl#sameAs> <http://example.org/ns#AliasResource>.
+<http://example.org/ns#Type1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class>.
+<http://example.org/ns#Type1> <http://www.w3.org/2000/01/rdf-schema#label> "Type 1"@en.
+<http://example.org/ns#Type1> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://example.org/ns#SuperType>.
+<http://example.org/ns#SuperType> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class>.
+<http://example.org/ns#SuperType> <http://www.w3.org/2000/01/rdf-schema#label> "Super Type"@en.
+<http://example.org/ns#SuperType> <http://www.w3.org/2000/01/rdf-schema#comment> "A superclass for demonstration purposes."@en.
+<http://example.org/.well-known/genid#6> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/ns#AnonymousType>.
+<http://example.org/.well-known/genid#6> <http://example.org/ns#anonymousProperty> "I am a blank node."^^<http://www.w3.org/2001/XMLSchema#string>.
+<http://example.org/ns#MultilingualResource> <http://purl.org/dc/elements/1.1/title> "Título en Español"@es.
+<http://example.org/ns#MultilingualResource> <http://purl.org/dc/elements/1.1/title> "Title in English"@en.
+<http://example.org/ns#MultilingualResource> <http://purl.org/dc/elements/1.1/title> "Titre en Français"@fr.
+<http://example.org/ns#DataTypedLiterals> <http://example.org/ns#integerValue> "123"^^<http://www.w3.org/2001/XMLSchema#integer>.
+<http://example.org/ns#DataTypedLiterals> <http://example.org/ns#decimalValue> "123.45"^^<http://www.w3.org/2001/XMLSchema#decimal>.
+<http://example.org/ns#DataTypedLiterals> <http://example.org/ns#booleanValue> "true"^^<http://www.w3.org/2001/XMLSchema#boolean>.
+<http://example.org/ns#DataTypedLiterals> <http://example.org/ns#customValue> "custom-datatype"^^<http://example.org/ns#CustomDatatype>.
+<http://example.org/.well-known/genid#7> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement>.
+<http://example.org/.well-known/genid#7> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <http://example.org/ns#ComplexResource>.
+<http://example.org/.well-known/genid#7> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://purl.org/dc/elements/1.1/creator>.
+<http://example.org/.well-known/genid#7> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> "Author Name"@en.
+<http://example.org/.well-known/genid#8> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "First Item"^^<http://www.w3.org/2001/XMLSchema#string>.
+<http://example.org/.well-known/genid#10> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Nested Item 1"^^<http://www.w3.org/2001/XMLSchema#string>.
+<http://example.org/.well-known/genid#11> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Nested Item 2"^^<http://www.w3.org/2001/XMLSchema#string>.
+<http://example.org/.well-known/genid#11> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil>.
+<http://example.org/.well-known/genid#10> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://example.org/.well-known/genid#11>.
+<http://example.org/.well-known/genid#9> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/.well-known/genid#10>.
+<http://example.org/.well-known/genid#12> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Second Item"^^<http://www.w3.org/2001/XMLSchema#string>.
+<http://example.org/.well-known/genid#12> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil>.
+<http://example.org/.well-known/genid#9> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://example.org/.well-known/genid#12>.
+<http://example.org/.well-known/genid#8> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://example.org/.well-known/genid#9>.
+<http://example.org/ns#ComplexList> <http://example.org/ns#hasList> <http://example.org/.well-known/genid#8>.

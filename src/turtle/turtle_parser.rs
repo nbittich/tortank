@@ -91,12 +91,15 @@ pub(crate) fn predicate(s: &str) -> ParserResult<TurtleValue> {
 }
 
 pub(crate) fn object(s: &str) -> ParserResult<TurtleValue> {
-    alt((iri_turtle, blank_node, collection_turtle, literal_turtle))(s)
+    preceded(
+        multispace0,
+        alt((iri_turtle, blank_node, collection_turtle, literal_turtle)),
+    )(s)
 }
 
 fn triples(s: &str) -> ParserResult<TurtleValue> {
     terminated(
-        predicate_lists(subject),
+        alt((predicate_lists(subject), anon_bnode_turtle)),
         preceded(multispace0, terminated(alt((tag("."), eof)), multispace0)),
     )(s)
 }
@@ -117,12 +120,15 @@ pub fn statements(s: &str) -> IResult<&str, Vec<TurtleValue>> {
 
 #[cfg(test)]
 mod test {
+    use std::borrow::Cow;
+    use std::collections::VecDeque;
+
     use crate::triple_common_parser::iri::prefixed_iri;
     use crate::triple_common_parser::prologue::{
         base_sparql, base_turtle, prefix_sparql, prefix_turtle,
     };
-    use crate::triple_common_parser::{BlankNode, Iri};
-    use crate::turtle::turtle_parser::{labeled_bnode, triples};
+    use crate::triple_common_parser::{BlankNode, Iri, Literal};
+    use crate::turtle::turtle_parser::{labeled_bnode, statements, triples, TurtleValue};
 
     #[test]
     fn base_test() {
@@ -230,6 +236,31 @@ mod test {
     }
 
     #[test]
+    fn with_unlabeled_type_bnode_test() {
+        let s = r#"
+        [foaf:name "Bob"] .
+        "#;
+        let (rest, res) = statements(s).unwrap();
+        assert!(rest.trim().is_empty());
+        assert_eq!(
+            res,
+            vec![TurtleValue::Statement {
+                subject: Box::new(TurtleValue::BNode(BlankNode::Unlabeled,)),
+                predicate_objects: vec![TurtleValue::PredicateObject {
+                    predicate: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                        prefix: "foaf",
+                        local_name: "name",
+                    },)),
+                    object: Box::new(TurtleValue::Literal(Literal::Quoted {
+                        datatype: Some(Iri::Enclosed("http://www.w3.org/2001/XMLSchema#string",),),
+                        value: Cow::Borrowed("Bob"),
+                        lang: None,
+                    },)),
+                },],
+            },]
+        );
+    }
+    #[test]
     fn unlabeled_nested_bnode() {
         let s = r#"
         [ foaf:name "Alice" ] foaf:knows [
@@ -240,12 +271,118 @@ mod test {
     foaf:mbox <bob@example.com>] .
 				
         "#;
-        let (_, res) = triples(s).unwrap();
+        let (rest, res) = triples(s).unwrap();
+        assert!(rest.trim().is_empty());
         dbg!(res);
 
         let s = r#"[] foaf:knows [foaf:name "Bob"] ."#;
-        let (_, res) = triples(s).unwrap();
+        let (rest, res) = triples(s).unwrap();
+        assert!(rest.trim().is_empty());
+
         dbg!(res);
+    }
+
+    #[test]
+    fn test_object_list() {
+        let s = r#"
+        @prefix ex: <http://example.org/ns#> .
+        ex:ComplexResource  ex:hasValue 42 , "forty-two"@en .
+        "#;
+        let (rest, s) = statements(s).unwrap();
+        assert!(rest.trim().is_empty());
+        assert_eq!(
+            s,
+            vec![
+                TurtleValue::Prefix(("ex", Iri::Enclosed("http://example.org/ns#",),),),
+                TurtleValue::Statement {
+                    subject: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                        prefix: "ex",
+                        local_name: "ComplexResource",
+                    },)),
+                    predicate_objects: vec![TurtleValue::PredicateObject {
+                        predicate: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                            prefix: "ex",
+                            local_name: "hasValue",
+                        },)),
+                        object: Box::new(TurtleValue::ObjectList(vec![
+                            TurtleValue::Literal(Literal::Integer(42,),),
+                            TurtleValue::Literal(Literal::Quoted {
+                                datatype: None,
+                                value: Cow::Borrowed("forty-two"),
+                                lang: Some("en",),
+                            },),
+                        ],)),
+                    },],
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn list_with_nested_collection() {
+        let s = r#"
+        # RDF List with nested collections
+        ex:ComplexList ex:hasList (
+            "First Item" 
+            (
+                "Nested Item 1"
+                "Nested Item 2"
+            )
+            "Second Item"
+        ) .
+        "#;
+        let (rest, res) = statements(s).unwrap();
+        assert!(rest.trim().is_empty());
+        assert_eq!(
+            res,
+            vec![TurtleValue::Statement {
+                subject: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                    prefix: "ex",
+                    local_name: "ComplexList",
+                },)),
+                predicate_objects: vec![TurtleValue::PredicateObject {
+                    predicate: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                        prefix: "ex",
+                        local_name: "hasList",
+                    },)),
+                    object: Box::new(TurtleValue::Collection(VecDeque::from([
+                        TurtleValue::Literal(Literal::Quoted {
+                            datatype: Some(Iri::Enclosed(
+                                "http://www.w3.org/2001/XMLSchema#string",
+                            ),),
+                            value: Cow::Borrowed("First Item"),
+                            lang: None,
+                        },),
+                        TurtleValue::Collection(
+                            [
+                                TurtleValue::Literal(Literal::Quoted {
+                                    datatype: Some(Iri::Enclosed(
+                                        "http://www.w3.org/2001/XMLSchema#string",
+                                    ),),
+                                    value: Cow::Borrowed("Nested Item 1"),
+                                    lang: None,
+                                },),
+                                TurtleValue::Literal(Literal::Quoted {
+                                    datatype: Some(Iri::Enclosed(
+                                        "http://www.w3.org/2001/XMLSchema#string",
+                                    ),),
+                                    value: "Nested Item 2".into(),
+                                    lang: None,
+                                },),
+                            ]
+                            .into(),
+                        ),
+                        TurtleValue::Literal(Literal::Quoted {
+                            datatype: Some(Iri::Enclosed(
+                                "http://www.w3.org/2001/XMLSchema#string",
+                            ),),
+                            value: "Second Item".into(),
+                            lang: None,
+                        },),
+                    ],))),
+                },],
+            },]
+        );
     }
 
     #[test]

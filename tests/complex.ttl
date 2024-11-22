@@ -1,0 +1,60 @@
+@prefix ex: <http://example.org/ns#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+# A complex resource with multiple properties
+ex:ComplexResource a ex:Type1 , ex:Type2 ;
+    foaf:name "Complex Resource" ;
+    dc:created "2024-11-22T12:34:56Z"^^xsd:dateTime ;
+    ex:hasValue 42 , "forty-two"@en ;
+    ex:hasNestedObject [
+        a ex:NestedType ;
+        ex:nestedProperty "Nested Value" ;
+        ex:linksTo <http://example.org/another-resource>
+    ] ;
+    ex:hasCollection ( "Item1" "Item2" [ ex:innerProperty "Inner Value" ] ) ;
+    skos:note "This resource demonstrates a variety of RDF features."@en ;
+    owl:sameAs ex:AliasResource .
+
+# An example of OWL class hierarchy
+ex:Type1 a owl:Class ;
+    rdfs:label "Type 1"@en ;
+    rdfs:subClassOf ex:SuperType .
+
+ex:SuperType a owl:Class ;
+    rdfs:label "Super Type"@en ;
+    rdfs:comment "A superclass for demonstration purposes."@en .
+
+# Blank node example
+[] a ex:AnonymousType ;
+    ex:anonymousProperty "I am a blank node." .
+
+# Multilingual literal example
+ex:MultilingualResource dc:title "Título en Español"@es , "Title in English"@en , "Titre en Français"@fr .
+
+# Datatype examples
+ex:DataTypedLiterals ex:integerValue "123"^^xsd:integer ;
+    ex:decimalValue "123.45"^^xsd:decimal ;
+    ex:booleanValue "true"^^xsd:boolean ;
+    ex:customValue "custom-datatype"^^ex:CustomDatatype .
+
+# Reified statement example
+[ a rdf:Statement ;
+    rdf:subject ex:ComplexResource ;
+    rdf:predicate dc:creator ;
+    rdf:object "Author Name"@en
+] .
+
+# RDF List with nested collections
+ex:ComplexList ex:hasList (
+    "First Item" 
+    (
+        "Nested Item 1"
+        "Nested Item 2"
+    )
+    "Second Item"
+) .

@@ -274,7 +274,10 @@ pub(crate) mod triple {
         F2: FnMut(Vec<T>) -> T,
     {
         map(
-            separated_list1(char(','), object_extractor),
+            separated_list1(
+                preceded(multispace0, terminated(char(','), multispace0)),
+                object_extractor,
+            ),
             move |mut list| {
                 if list.len() > 1 {
                     map_list(list)
@@ -327,18 +330,15 @@ pub(crate) mod triple {
     where
         F: Fn(&'a str) -> ParserResult<'a, T>,
     {
-        preceded(
-            multispace0,
-            map(
-                preceded(
-                    paren_open,
-                    terminated(
-                        separated_list0(multispace1, object_extractor),
-                        preceded(multispace0, cut(paren_close)),
-                    ),
+        map(
+            preceded(
+                paren_open,
+                terminated(
+                    separated_list0(multispace1, object_extractor),
+                    preceded(multispace0, cut(paren_close)),
                 ),
-                VecDeque::from,
             ),
+            VecDeque::from,
         )
     }
     pub(crate) fn anon_bnode<'a, F, T>(anon_parser: F) -> impl FnMut(&'a str) -> ParserResult<'a, T>
@@ -378,7 +378,7 @@ pub(crate) fn comments(s: &str) -> ParserResult<Vec<&str>> {
 }
 
 pub(crate) fn paren_close(s: &str) -> ParserResult<&str> {
-    tag_no_space(")")(s)
+    preceded(multispace0, tag(")"))(s)
 }
 pub(crate) fn paren_open(s: &str) -> ParserResult<&str> {
     tag_no_space("(")(s)
