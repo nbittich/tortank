@@ -55,7 +55,7 @@ pub(crate) mod iri {
         preceded(multispace0, prefixed)(s)
     }
     pub(crate) fn iri(s: &str) -> ParserResult<Iri> {
-        delimited(multispace0, alt((prefixed_iri, enclosed_iri)), multispace0)(s)
+        alt((prefixed_iri, enclosed_iri))(s)
     }
     pub(crate) fn enclosed_iri(s: &str) -> ParserResult<Iri> {
         let enclosed = map(

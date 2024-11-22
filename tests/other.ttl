@@ -1,0 +1,182 @@
+@prefix ex: <http://example.org/> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Complex Class Hierarchy with Multiple Inheritance
+ex:Person a rdfs:Class ;
+    rdfs:subClassOf [ a rdfs:Class ;
+                      rdfs:subClassOf ex:Human ;
+                      rdfs:label "Human Person" ] .
+
+ex:Human a rdfs:Class ;
+    rdfs:subClassOf ex:LivingBeing ;
+    rdfs:label "Human" .
+
+ex:LivingBeing a rdfs:Class ;
+    rdfs:subClassOf rdfs:Resource ;
+    rdfs:label "Living Being" .
+
+ex:Employee a rdfs:Class ;
+    rdfs:subClassOf ex:Person ;
+    rdfs:label "Employee" .
+
+ex:Manager a rdfs:Class ;
+    rdfs:subClassOf ex:Employee ;
+    rdfs:label "Manager" .
+
+ex:Company a rdfs:Class ;
+    rdfs:label "Company" .
+
+# Resource Instances: People, Companies, and Relationships
+ex:alice a ex:Person ;
+    foaf:name "Alice" ;
+    foaf:mbox <mailto:alice@example.org> ;
+    ex:employeeId "EMP001" ;
+    ex:worksAt ex:techCompany ;
+    ex:hasManager ex:bob .
+
+ex:bob a ex:Manager ;
+    foaf:name "Bob" ;
+    foaf:mbox <mailto:bob@example.org> ;
+    ex:employeeId "EMP002" ;
+    ex:worksAt ex:techCompany ;
+    ex:manages [ ex:employeeId "EMP003" ;
+                 ex:worksAt ex:techCompany ;
+                 ex:employeeName "Charlie" ] .
+
+ex:techCompany a ex:Company ;
+    ex:hasName "Tech Innovations Ltd." ;
+    ex:hasLocation "Silicon Valley" ;
+    ex:hasEmployee ex:alice, ex:bob .
+
+# More Complex Literals with Multiple Datatypes and Language Tags
+ex:product1 a ex:Product ;
+    dc:title "Smartphone" ;
+    ex:hasPrice "699.99"^^xsd:decimal ;
+    ex:hasReleaseDate "2024-05-15"^^xsd:date ;
+    ex:hasSpecifications "8GB RAM, 128GB Storage"@en ;
+    ex:hasColor "Black" .
+
+# Literal with complex datatype and multi-language support
+ex:test ex:multilingualDescription "A great product"@en, "Un grand produit"@fr .
+
+# Advanced Property Chains and Inverse Properties
+ex:hasParent a rdf:Property ;
+    rdfs:domain ex:Person ;
+    rdfs:range ex:Person ;
+    rdfs:label "has parent" .
+
+ex:hasAncestor a rdf:Property ;
+    rdfs:domain ex:Person ;
+    rdfs:range ex:Person ;
+    rdfs:subPropertyOf ex:hasParent ;
+    rdfs:label "has ancestor" .
+
+ex:hasDescendant a rdf:Property ;
+    rdfs:domain ex:Person ;
+    rdfs:range ex:Person ;
+    rdfs:inverseOf ex:hasAncestor ;
+    rdfs:label "has descendant" .
+
+# Reification of more complex statements
+ex:statement1 a rdf:Statement ;
+    rdf:subject ex:alice ;
+    rdf:predicate ex:hasAge ;
+    rdf:object "30"^^xsd:int .
+
+ex:statement2 a rdf:Statement ;
+    rdf:subject ex:bob ;
+    rdf:predicate ex:hasAge ;
+    rdf:object "40"^^xsd:int .
+
+ex:statement3 a rdf:Statement ;
+    rdf:subject ex:techCompany ;
+    rdf:predicate ex:hasEmployee ;
+    rdf:object ex:alice .
+
+# Property Restrictions (Cardinality, Pattern Matching)
+ex:hasPhoneNumber a rdf:Property ;
+    rdfs:domain ex:Person ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The phone number of a person." .
+
+ex:PhoneNumber a rdfs:Class ;
+    rdfs:subClassOf [ a rdf:Restriction ;
+                      rdf:predicate ex:hasPhoneNumber ;
+                      rdf:cardinality 1 ] .
+
+# Complex Blank Nodes
+[] a ex:Person ;
+    foaf:name "Charlie" ;
+    ex:employeeId "EMP003" ;
+    ex:worksAt ex:techCompany ;
+    ex:hasManager ex:bob ;
+    ex:address [ ex:street "123 Main St." ;
+                 ex:city "Sunnyvale" ;
+                 ex:postalCode "94086" ] .
+
+# Collection and Sequence Usage
+ex:techProducts a ex:ProductCollection ;
+    ex:hasProducts ( ex:product1 ex:product2 ex:product3 ) .
+
+ex:orderedProducts a ex:OrderedProductList ;
+    rdf:rest rdf:nil ;
+    rdf:first ex:product1 ;
+    rdf:rest [ rdf:first ex:product2 ;
+              rdf:rest [ rdf:first ex:product3 ;
+                        rdf:rest rdf:nil ] ] .
+
+# Literal with multiple types for testing (multi-typed literals)
+ex:Alo ex:multiTypedLiteral "42"^^xsd:int, "42.0"^^xsd:decimal .
+
+# A Blank Node with Multiple Predicates
+[] a ex:Event ;
+    ex:hasName "Product Launch" ;
+    ex:hasDate "2024-06-15"^^xsd:date ;
+    ex:hasLocation "Silicon Valley" ;
+    ex:hasSpeaker ex:alice ;
+    ex:hasSpeaker ex:bob ;
+    ex:hasAttendee ex:charlie .
+
+# Nested Statements (Reification of reification)
+ex:reifiedStatement1 a rdf:Statement ;
+    rdf:subject ex:statement1 ;
+    rdf:predicate rdf:type ;
+    rdf:object rdf:Statement .
+
+# Inverse Functional Properties
+ex:hasUniqueID a rdf:Property ;
+    rdfs:domain ex:Person ;
+    rdfs:range xsd:string ;
+    rdfs:inverseOf ex:isIdentifiedBy .
+
+ex:isIdentifiedBy a rdf:Property ;
+    rdfs:domain xsd:string ;
+    rdfs:range ex:Person ;
+    rdfs:inverseOf ex:hasUniqueID .
+
+# Additional Inference Rules with Reasoning
+ex:hasAge a rdf:Property ;
+    rdfs:domain ex:Person ;
+    rdfs:range xsd:int ;
+    rdfs:comment "Age of the person." .
+
+ex:hasAgeAsText a rdf:Property ;
+    rdfs:domain ex:Person ;
+    rdfs:range xsd:string ;
+    rdfs:subPropertyOf ex:hasAge .
+
+# More advanced Property Constraints
+ex:hasPhoneNumber a rdf:Property ;
+    rdfs:domain ex:Person ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The phone number of the person." .
+
+ex:PhoneNumber a rdfs:Class ;
+    rdfs:subClassOf [ a rdf:Restriction ;
+                      rdf:predicate ex:hasPhoneNumber ;
+                      rdf:minCardinality 1 ;
+                      rdf:maxCardinality 1 ] .

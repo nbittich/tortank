@@ -1,0 +1,142 @@
+<http://example.org/.well-known/genid#2> <http://example.org/employeeName> "Charlie" .
+<http://example.org/.well-known/genid#2> <http://example.org/worksAt> <http://example.org/techCompany> .
+<http://example.org/.well-known/genid#2> <http://example.org/employeeId> "EMP003" .
+<http://example.org/LivingBeing> <http://www.w3.org/2000/01/rdf-schema#label> "Living Being" .
+<http://example.org/LivingBeing> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://www.w3.org/2000/01/rdf-schema#Resource> .
+<http://example.org/LivingBeing> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .
+<http://example.org/.well-known/genid#5> <http://example.org/postalCode> "94086" .
+<http://example.org/.well-known/genid#5> <http://example.org/city> "Sunnyvale" .
+<http://example.org/.well-known/genid#5> <http://example.org/street> "123 Main St." .
+<http://example.org/.well-known/genid#7>  <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://example.org/.well-known/genid#8> .
+<http://example.org/.well-known/genid#7>  <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/product2> .
+<http://example.org/.well-known/genid#9> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://example.org/.well-known/genid#10> .
+<http://example.org/.well-known/genid#9> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/product2> .
+<http://example.org/.well-known/genid#3> <http://www.w3.org/1999/02/22-rdf-syntax-ns#cardinality> "1"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://example.org/.well-known/genid#12> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://example.org/hasPhoneNumber> .
+<http://example.org/.well-known/genid#12> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Restriction> .
+<http://example.org/hasAgeAsText> <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://example.org/hasAge> .
+<http://example.org/hasAgeAsText> <http://www.w3.org/2000/01/rdf-schema#range> <http://www.w3.org/2001/XMLSchema#string> .
+<http://example.org/hasAgeAsText> <http://www.w3.org/2000/01/rdf-schema#domain> <http://example.org/Person> .
+<http://example.org/hasAgeAsText> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> .
+<http://example.org/hasPhoneNumber> <http://www.w3.org/2000/01/rdf-schema#comment> "The phone number of the person." .
+<http://example.org/hasPhoneNumber> <http://www.w3.org/2000/01/rdf-schema#comment> "The phone number of a person." .
+<http://example.org/hasPhoneNumber> <http://www.w3.org/2000/01/rdf-schema#range> <http://www.w3.org/2001/XMLSchema#string> .
+<http://example.org/hasPhoneNumber> <http://www.w3.org/2000/01/rdf-schema#domain> <http://example.org/Person> .
+<http://example.org/hasPhoneNumber> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> .
+<http://example.org/Employee> <http://www.w3.org/2000/01/rdf-schema#label> "Employee" .
+<http://example.org/Employee> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://example.org/Person> .
+<http://example.org/Employee> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .
+<http://example.org/.well-known/genid#10> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+<http://example.org/.well-known/genid#10> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/product3> .
+<http://example.org/hasAge> <http://www.w3.org/2000/01/rdf-schema#comment> "Age of the person." .
+<http://example.org/hasAge> <http://www.w3.org/2000/01/rdf-schema#range> <http://www.w3.org/2001/XMLSchema#int> .
+<http://example.org/hasAge> <http://www.w3.org/2000/01/rdf-schema#domain> <http://example.org/Person> .
+<http://example.org/hasAge> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> .
+<http://example.org/statement1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> "30"^^<http://www.w3.org/2001/XMLSchema#int> .
+<http://example.org/statement1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://example.org/hasAge> .
+<http://example.org/statement1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <http://example.org/alice> .
+<http://example.org/statement1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .
+<http://example.org/hasParent> <http://www.w3.org/2000/01/rdf-schema#label> "has parent" .
+<http://example.org/hasParent> <http://www.w3.org/2000/01/rdf-schema#range> <http://example.org/Person> .
+<http://example.org/hasParent> <http://www.w3.org/2000/01/rdf-schema#domain> <http://example.org/Person> .
+<http://example.org/hasParent> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> .
+<http://example.org/Human> <http://www.w3.org/2000/01/rdf-schema#label> "Human" .
+<http://example.org/Human> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://example.org/LivingBeing> .
+<http://example.org/Human> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .
+<http://example.org/product1> <http://example.org/hasColor> "Black" .
+<http://example.org/product1> <http://example.org/hasSpecifications> "8GB RAM, 128GB Storage"@en .
+<http://example.org/product1> <http://example.org/hasReleaseDate> "2024-05-15"^^<http://www.w3.org/2001/XMLSchema#date> .
+<http://example.org/product1> <http://example.org/hasPrice> "699.99"^^<http://www.w3.org/2001/XMLSchema#decimal> .
+<http://example.org/product1> <http://purl.org/dc/elements/1.1/title> "Smartphone" .
+<http://example.org/product1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/Product> .
+<http://example.org/statement2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> "40"^^<http://www.w3.org/2001/XMLSchema#int> .
+<http://example.org/statement2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://example.org/hasAge> .
+<http://example.org/statement2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <http://example.org/bob> .
+<http://example.org/statement2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .
+<http://example.org/hasAncestor> <http://www.w3.org/2000/01/rdf-schema#label> "has ancestor" .
+<http://example.org/hasAncestor> <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://example.org/hasParent> .
+<http://example.org/hasAncestor> <http://www.w3.org/2000/01/rdf-schema#range> <http://example.org/Person> .
+<http://example.org/hasAncestor> <http://www.w3.org/2000/01/rdf-schema#domain> <http://example.org/Person> .
+<http://example.org/hasAncestor> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> .
+<http://example.org/.well-known/genid#4> <http://example.org/address> <http://example.org/.well-known/genid#5> .
+<http://example.org/.well-known/genid#4> <http://example.org/hasManager> <http://example.org/bob> .
+<http://example.org/.well-known/genid#4> <http://example.org/worksAt> <http://example.org/techCompany> .
+<http://example.org/.well-known/genid#4> <http://example.org/employeeId> "EMP003" .
+<http://example.org/.well-known/genid#4> <http://xmlns.com/foaf/0.1/name> "Charlie" .
+<http://example.org/.well-known/genid#4> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/Person> .
+<http://example.org/.well-known/genid#1> <http://www.w3.org/2000/01/rdf-schema#label> "Human Person" .
+<http://example.org/.well-known/genid#1> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://example.org/Human> .
+<http://example.org/.well-known/genid#1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .
+<http://example.org/hasUniqueID> <http://www.w3.org/2000/01/rdf-schema#inverseOf> <http://example.org/isIdentifiedBy> .
+<http://example.org/hasUniqueID> <http://www.w3.org/2000/01/rdf-schema#range> <http://www.w3.org/2001/XMLSchema#string> .
+<http://example.org/hasUniqueID> <http://www.w3.org/2000/01/rdf-schema#domain> <http://example.org/Person> .
+<http://example.org/hasUniqueID> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> .
+<http://example.org/Company> <http://www.w3.org/2000/01/rdf-schema#label> "Company" .
+<http://example.org/Company> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .
+<http://example.org/.well-known/genid#11> <http://example.org/hasAttendee> <http://example.org/charlie> .
+<http://example.org/.well-known/genid#11> <http://example.org/hasSpeaker> <http://example.org/bob> .
+<http://example.org/.well-known/genid#11> <http://example.org/hasSpeaker> <http://example.org/alice> .
+<http://example.org/.well-known/genid#11> <http://example.org/hasLocation> "Silicon Valley" .
+<http://example.org/.well-known/genid#11> <http://example.org/hasDate> "2024-06-15"^^<http://www.w3.org/2001/XMLSchema#date> .
+<http://example.org/.well-known/genid#11> <http://example.org/hasName> "Product Launch" .
+<http://example.org/.well-known/genid#11> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/Event> .
+<http://example.org/reifiedStatement1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .
+<http://example.org/reifiedStatement1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> .
+<http://example.org/reifiedStatement1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <http://example.org/statement1> .
+<http://example.org/reifiedStatement1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .
+<http://example.org/alice> <http://example.org/hasManager> <http://example.org/bob> .
+<http://example.org/alice> <http://example.org/worksAt> <http://example.org/techCompany> .
+<http://example.org/alice> <http://example.org/employeeId> "EMP001" .
+<http://example.org/alice> <http://xmlns.com/foaf/0.1/mbox> <mailto:alice@example.org> .
+<http://example.org/alice> <http://xmlns.com/foaf/0.1/name> "Alice" .
+<http://example.org/alice> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/Person> .
+<http://example.org/statement3> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <http://example.org/alice> .
+<http://example.org/statement3> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://example.org/hasEmployee> .
+<http://example.org/statement3> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <http://example.org/techCompany> .
+<http://example.org/statement3> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .
+<http://example.org/Manager> <http://www.w3.org/2000/01/rdf-schema#label> "Manager" .
+<http://example.org/Manager> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://example.org/Employee> .
+<http://example.org/Manager> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .
+<http://example.org/hasDescendant> <http://www.w3.org/2000/01/rdf-schema#label> "has descendant" .
+<http://example.org/hasDescendant> <http://www.w3.org/2000/01/rdf-schema#inverseOf> <http://example.org/hasAncestor> .
+<http://example.org/hasDescendant> <http://www.w3.org/2000/01/rdf-schema#range> <http://example.org/Person> .
+<http://example.org/hasDescendant> <http://www.w3.org/2000/01/rdf-schema#domain> <http://example.org/Person> .
+<http://example.org/hasDescendant> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> .
+<http://example.org/techProducts> <http://example.org/hasProducts> <http://example.org/.well-known/genid#6> .
+<http://example.org/techProducts> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/ProductCollection> .
+<http://example.org/.well-known/genid#12> <http://www.w3.org/1999/02/22-rdf-syntax-ns#maxCardinality> "1"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://example.org/.well-known/genid#12> <http://www.w3.org/1999/02/22-rdf-syntax-ns#minCardinality> "1"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://example.org/.well-known/genid#3> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://example.org/hasPhoneNumber> .
+<http://example.org/.well-known/genid#3> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Restriction> .
+<http://example.org/bob> <http://example.org/manages> <http://example.org/.well-known/genid#2> .
+<http://example.org/bob> <http://example.org/worksAt> <http://example.org/techCompany> .
+<http://example.org/bob> <http://example.org/employeeId> "EMP002" .
+<http://example.org/bob> <http://xmlns.com/foaf/0.1/mbox> <mailto:bob@example.org> .
+<http://example.org/bob> <http://xmlns.com/foaf/0.1/name> "Bob" .
+<http://example.org/bob> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/Manager> .
+<http://example.org/Alo> <http://example.org/multiTypedLiteral> "42.0"^^<http://www.w3.org/2001/XMLSchema#decimal> .
+<http://example.org/Alo> <http://example.org/multiTypedLiteral> "42"^^<http://www.w3.org/2001/XMLSchema#int> .
+<http://example.org/isIdentifiedBy> <http://www.w3.org/2000/01/rdf-schema#inverseOf> <http://example.org/hasUniqueID> .
+<http://example.org/isIdentifiedBy> <http://www.w3.org/2000/01/rdf-schema#range> <http://example.org/Person> .
+<http://example.org/isIdentifiedBy> <http://www.w3.org/2000/01/rdf-schema#domain> <http://www.w3.org/2001/XMLSchema#string> .
+<http://example.org/isIdentifiedBy> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> .
+<http://example.org/orderedProducts> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://example.org/.well-known/genid#9> .
+<http://example.org/orderedProducts> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/product1> .
+<http://example.org/orderedProducts> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+<http://example.org/orderedProducts> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/OrderedProductList> .
+<http://example.org/test> <http://example.org/multilingualDescription> "Un grand produit"@fr .
+<http://example.org/test> <http://example.org/multilingualDescription> "A great product"@en .
+<http://example.org/techCompany> <http://example.org/hasEmployee> <http://example.org/bob> .
+<http://example.org/techCompany> <http://example.org/hasEmployee> <http://example.org/alice> .
+<http://example.org/techCompany> <http://example.org/hasLocation> "Silicon Valley" .
+<http://example.org/techCompany> <http://example.org/hasName> "Tech Innovations Ltd." .
+<http://example.org/techCompany> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/Company> .
+<http://example.org/.well-known/genid#8> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+<http://example.org/.well-known/genid#8> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/product3> .
+<http://example.org/.well-known/genid#6> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://example.org/.well-known/genid#7>  .
+<http://example.org/.well-known/genid#6> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/product1> .
+<http://example.org/Person> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://example.org/.well-known/genid#1> .
+<http://example.org/Person> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .
+<http://example.org/PhoneNumber> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://example.org/.well-known/genid#3> .
+<http://example.org/PhoneNumber> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://example.org/.well-known/genid#12> .
+<http://example.org/PhoneNumber> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .

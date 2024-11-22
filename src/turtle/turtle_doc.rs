@@ -1216,6 +1216,20 @@ mod test {
 
     #[test]
     #[serial]
+    fn other_test() {
+        FAKE_UUID_GEN.store(0, std::sync::atomic::Ordering::SeqCst);
+        let mut buf_c = String::new();
+        let mut buf_e = String::new();
+
+        let turtle_c = TurtleDoc::from_file("tests/other.ttl", None, &mut buf_c).unwrap();
+        let turtle_expected =
+            TurtleDoc::from_file("tests/expected_other.ttl", None, &mut buf_e).unwrap();
+        println!("{}", turtle_c.difference(&turtle_expected).unwrap());
+        println!("{}", turtle_expected.difference(&turtle_c).unwrap());
+        assert_eq!(turtle_c.difference(&turtle_expected).unwrap().len(), 0);
+    }
+    #[test]
+    #[serial]
     fn complex_test() {
         FAKE_UUID_GEN.store(0, std::sync::atomic::Ordering::SeqCst);
         let mut buf_c = String::new();

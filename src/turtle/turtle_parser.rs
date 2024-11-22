@@ -260,6 +260,44 @@ mod test {
             },]
         );
     }
+
+    #[test] // NORDINE
+    fn collection_test_from_other() {
+        let s = r#"
+        ex:techProducts ex:hasProducts ( ex:product1 ex:product2 )."#;
+
+        let (rest, res) = statements(s).unwrap();
+        assert!(rest.trim().is_empty());
+        assert_eq!(
+            res,
+            vec![TurtleValue::Statement {
+                subject: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                    prefix: "ex",
+                    local_name: "techProducts",
+                },)),
+                predicate_objects: vec![TurtleValue::PredicateObject {
+                    predicate: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                        prefix: "ex",
+                        local_name: "hasProducts",
+                    },)),
+                    object: Box::new(TurtleValue::Collection(
+                        [
+                            TurtleValue::Iri(Iri::Prefixed {
+                                prefix: "ex",
+                                local_name: "product1",
+                            },),
+                            TurtleValue::Iri(Iri::Prefixed {
+                                prefix: "ex",
+                                local_name: "product2",
+                            },),
+                        ]
+                        .into(),
+                    )),
+                },],
+            },]
+        );
+    }
+
     #[test]
     fn unlabeled_nested_bnode() {
         let s = r#"
@@ -388,17 +426,20 @@ mod test {
     #[test]
     fn collection_test() {
         let s = r#":a :b ( "apple" "banana" ) ."#;
-        let (_, res) = triples(s).unwrap();
+        let (rest, res) = triples(s).unwrap();
+        assert!(rest.trim().is_empty());
         dbg!(res);
         let s = r#"(1 2.0 3E1) :p "w" ."#;
-        let (_, res) = triples(s).unwrap();
+        let (rest, res) = triples(s).unwrap();
+        assert!(rest.trim().is_empty());
         dbg!(res);
         let s = r#"(1 [:p :q] ( 2 ) ) :p2 :q2 ."#;
-        let (_, res) = triples(s).unwrap();
+        let (rest, res) = triples(s).unwrap();
         dbg!(res);
+        assert!(rest.trim().is_empty());
         let s = r#":subject :predicate2 () ."#;
-        let (_, res) = triples(s).unwrap();
-
+        let (rest, res) = triples(s).unwrap();
+        assert!(rest.trim().is_empty());
         dbg!(res);
     }
 }
