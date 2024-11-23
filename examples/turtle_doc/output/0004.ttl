@@ -1,3 +1,4 @@
+
 <http://mu.semte.ch/services/ldes-time-fragmenter/versioned/b975c846-170e-4569-a488-722b70a546d8> <http://www.w3.org/ns/prov#generatedAtTime> "2024-11-21T13:35:50.038Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>.
 <http://mu.semte.ch/streams/ldes-mow-register> <https://w3id.org/tree#member> <http://mu.semte.ch/services/ldes-time-fragmenter/versioned/486bfa18-6bfd-461e-9688-c01e5fb9b49c>.
 <http://mu.semte.ch/services/ldes-time-fragmenter/versioned/486bfa18-6bfd-461e-9688-c01e5fb9b49c> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.cidoc-crm.org/cidoc-crm/E54_Dimension>.

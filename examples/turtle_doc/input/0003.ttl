@@ -1,4 +1,5 @@
 
+
 <http://mu.semte.ch/streams/ldes-mow-register> a <http://w3id.org/ldes#EventStream>, <https://w3id.org/tree#Collection>;
     <https://w3id.org/tree#view> <./1>;
     <http://w3id.org/ldes#timestampPath> <http://www.w3.org/ns/prov#generatedAtTime>;

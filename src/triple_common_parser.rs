@@ -260,6 +260,8 @@ pub(crate) mod literal {
 }
 pub(crate) mod triple {
 
+    use nom::error::{ParseError, VerboseError};
+
     use crate::grammar::BLANK_NODE_LABEL;
     use crate::prelude::*;
     use crate::shared::NS_TYPE;
@@ -382,7 +384,7 @@ pub(crate) mod triple {
                 .is_some()
             || bnode.chars().take(1).any(allowed_but_not_as_first)
         {
-            let err: Error<&str> = make_error(s, ErrorKind::IsNot);
+            let err = VerboseError::from_error_kind(s, ErrorKind::IsNot);
             return Err(nom::Err::Error(err));
         }
         let rest = &s[idx_bnode..];

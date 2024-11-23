@@ -114,7 +114,7 @@ fn statement(s: &str) -> ParserResult<TurtleValue> {
     preceded(comments, alt((directive, triples)))(s)
 }
 
-pub fn statements(s: &str) -> IResult<&str, Vec<TurtleValue>> {
+pub fn statements(s: &str) -> ParserResult<Vec<TurtleValue>> {
     many0(statement)(s)
 }
 

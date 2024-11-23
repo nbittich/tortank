@@ -1,3 +1,4 @@
+
 <http://example.org/Agent1> <http://example.org/apiVersion> "1.0.0" .
 <http://example.org/Agent1> <http://xmlns.com/foaf/0.1/name> "Semantic Generator Bot" .
 <http://example.org/Agent1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/ns/prov#Agent> .

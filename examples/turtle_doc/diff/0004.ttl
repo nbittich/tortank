@@ -1,5 +1,6 @@
 
 
+
 <http://mu.semte.ch/streams/ldes-mow-register> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://w3id.org/ldes#EventStream> .
 
 <http://mu.semte.ch/streams/ldes-mow-register> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/tree#Collection> .

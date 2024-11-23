@@ -4,6 +4,7 @@ mod triple_common_parser;
 pub mod turtle;
 
 pub mod prelude {
+    use nom::error::VerboseError;
     pub use nom::{
         branch::alt,
         bytes::complete::{
@@ -26,7 +27,7 @@ pub mod prelude {
         sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
         AsChar, IResult, InputIter, ParseTo, Parser,
     };
-    pub type ParserResult<'a, T> = IResult<&'a str, T>;
+    pub type ParserResult<'a, T> = IResult<&'a str, T, VerboseError<&'a str>>;
 }
 
 pub mod grammar {
@@ -39,3 +40,6 @@ pub mod grammar {
     pub const LANGTAG: &str = "@";
     pub const BLANK_NODE_LABEL: &str = "_:";
 }
+
+#[cfg(test)]
+mod tests;

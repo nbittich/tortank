@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
-/// copied from https://github.com/rust-bakery/nom/blob/7.1.3/examples/string.rs
 use nom::branch::alt;
 use nom::bytes::streaming::{is_not, take_while_m_n};
+use nom::character::complete::anychar;
 use nom::character::streaming::{char, multispace1};
 use nom::combinator::{map, map_opt, map_res, value, verify};
 use nom::error::{FromExternalError, ParseError};
@@ -10,8 +10,7 @@ use nom::multi::fold_many0;
 use nom::sequence::{delimited, preceded};
 use nom::IResult;
 
-use crate::prelude::ParserResult;
-
+/// copied from https://github.com/rust-bakery/nom/blob/7.1.3/examples/string.rs
 // parser combinators are constructed from the bottom up:
 // first we write parsers for the smallest elements (escaped characters),
 // then combine them into larger parsers.
@@ -83,6 +82,9 @@ fn parse_escaped_whitespace<'a, E: ParseError<&'a str>>(
 ) -> IResult<&'a str, &'a str, E> {
     preceded(char('\\'), multispace1)(input)
 }
+fn parse_escaped_anychar<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, char, E> {
+    preceded(char('\\'), anychar)(input)
+}
 
 /// Parse a non-empty block of text that doesn't include \ or "
 fn parse_literal<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
@@ -105,6 +107,7 @@ enum StringFragment<'a> {
     Literal(&'a str),
     EscapedChar(char),
     EscapedWS,
+    EscapedAnychar(char),
 }
 
 /// Combine parse_literal, parse_escaped_whitespace, and parse_escaped_char
@@ -119,12 +122,16 @@ where
         map(parse_literal, StringFragment::Literal),
         map(parse_escaped_char, StringFragment::EscapedChar),
         value(StringFragment::EscapedWS, parse_escaped_whitespace),
+        map(parse_escaped_anychar, StringFragment::EscapedAnychar),
     ))(input)
 }
 
 /// Parse a string. Use a loop of parse_fragment and push all of the fragments
 /// into an output string.
-pub(crate) fn parse_escaped_string(input: &str) -> ParserResult<Cow<'_, str>> {
+pub(crate) fn parse_escaped_string<'a, E>(input: &'a str) -> IResult<&'a str, Cow<'a, str>, E>
+where
+    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
+{
     // fold_many0 is the equivalent of iterator::fold. It runs a parser in a loop,
     // and for each output value, calls a folding function on each output value.
     let build_string = || {
@@ -140,6 +147,10 @@ pub(crate) fn parse_escaped_string(input: &str) -> ParserResult<Cow<'_, str>> {
                     StringFragment::Literal(s) => string.push_str(s),
                     StringFragment::EscapedChar(c) => string.push(c),
                     StringFragment::EscapedWS => {}
+                    StringFragment::EscapedAnychar(c) => {
+                        string.push('\\');
+                        string.push(c)
+                    }
                 }
                 string
             },
@@ -152,4 +163,39 @@ pub(crate) fn parse_escaped_string(input: &str) -> ParserResult<Cow<'_, str>> {
     // loop won't accidentally match your closing delimiter!
 
     map(build_string(), Cow::Owned)(input)
+}
+
+#[cfg(test)]
+mod test {
+    use std::borrow::Cow;
+
+    use nom::{bytes::complete::tag, sequence::delimited};
+
+    use crate::prelude::ParserResult;
+
+    use super::parse_escaped_string;
+
+    #[test]
+    fn parse_escaped_string_with_tab() {
+        let input = "\"\n".to_string()
+            + "This is a long comment\n"
+            + "that spans multiple lines.\n\n"
+            + "It contains spaces, special characters like %, &, and @, and \n"
+            + "even new lines. This format ensures the string is \n"
+            + "properly encapsulated without breaking syntax rules.\n"
+            + "\t\t\n"
+            + "You can add as much text as needed here.\"";
+        let expected = "\n".to_string()
+            + "This is a long comment\n"
+            + "that spans multiple lines.\n\n"
+            + "It contains spaces, special characters like %, &, and @, and \n"
+            + "even new lines. This format ensures the string is \n"
+            + "properly encapsulated without breaking syntax rules.\n\t\t\n"
+            + "You can add as much text as needed here.";
+
+        let v: ParserResult<Cow<'_, str>> =
+            delimited(tag("\""), parse_escaped_string, tag("\""))(&input);
+        let (_, res) = v.unwrap();
+        assert_eq!(res, expected);
+    }
 }

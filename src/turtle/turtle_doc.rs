@@ -1,4 +1,4 @@
-use crate::grammar::BLANK_NODE_LABEL;
+use crate::grammar::{BLANK_NODE_LABEL, STRING_LITERAL_LONG_QUOTE};
 use crate::shared::{
     DATE_FORMATS, DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, DEFAULT_TIME_FORMAT, RDF_FIRST,
     RDF_NIL, RDF_REST, TIME_FORMATS, XSD_BOOLEAN, XSD_DATE, XSD_DATE_TIME, XSD_DECIMAL, XSD_DOUBLE,
@@ -26,6 +26,10 @@ use std::sync::Arc;
 #[cfg(test)]
 static FAKE_UUID_GEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+#[cfg(test)]
+pub(crate) fn reset_fake_uuid_gen() {
+    FAKE_UUID_GEN.store(0, std::sync::atomic::Ordering::SeqCst);
+}
 #[cfg(not(test))]
 fn get_uuid() -> String {
     uuid::Uuid::new_v4().to_string()
@@ -915,11 +919,12 @@ impl Display for Node<'_> {
                 lang,
                 value,
             }) => {
-                let mut s = format!(r#""{value}""#);
+                let mut s =
+                    format!("{STRING_LITERAL_LONG_QUOTE}{value}{STRING_LITERAL_LONG_QUOTE}",);
                 if let Some(datatype) = datatype {
-                    s.push_str(&format!(r#"^^{datatype}"#));
+                    s.push_str(&format!("^^{datatype}"));
                 } else if let Some(lang) = lang {
-                    s.push_str(&format!(r#"@{lang}"#));
+                    s.push_str(&format!("@{lang}"));
                 }
                 write!(f, "{s}")
             }
@@ -1274,77 +1279,6 @@ mod test {
 
     #[test]
     #[serial]
-    fn complex_test_with_bnode() {
-        FAKE_UUID_GEN.store(0, std::sync::atomic::Ordering::SeqCst);
-        let mut buf_c = String::new();
-        let mut buf_e = String::new();
-
-        let turtle_c = TurtleDoc::from_file("tests/complex.ttl", None, &mut buf_c).unwrap();
-        let turtle_expected =
-            TurtleDoc::from_file("tests/expected_complex.ttl", None, &mut buf_e).unwrap();
-        assert_eq!(turtle_c.difference(&turtle_expected).unwrap().len(), 0);
-    }
-    #[test]
-    #[serial]
-    fn complex_test2() {
-        FAKE_UUID_GEN.store(0, std::sync::atomic::Ordering::SeqCst);
-        let mut buf_c = String::new();
-        let mut buf_e = String::new();
-
-        let turtle_c = TurtleDoc::from_file("tests/complex2.ttl", None, &mut buf_c).unwrap();
-        let turtle_expected =
-            TurtleDoc::from_file("tests/expected_complex2.ttl", None, &mut buf_e).unwrap();
-        assert_eq!(turtle_c.difference(&turtle_expected).unwrap().len(), 0);
-    }
-
-    #[test]
-    #[serial]
-    fn turtle_doc_could_not_parse_completely() {
-        let mut buf_c = String::new();
-        let mut buf_f = String::new();
-        let turtle_c = TurtleDoc::from_file("tests/modelC.ttl", None, &mut buf_c).unwrap();
-        let turtle_f = TurtleDoc::from_file("tests/modelF.ttl", None, &mut buf_f).unwrap();
-
-        assert!(!turtle_c.to_string().is_empty());
-        assert_eq!(39, turtle_c.len());
-        assert_eq!(0, turtle_c.difference(&turtle_f).unwrap().len());
-    }
-
-    #[test]
-    #[serial]
-    fn turtle_doc_diff_buggy() {
-        let mut buf_a = String::new();
-        let mut buf_b = String::new();
-        let mut buf_e = String::new();
-        let turtle_a = TurtleDoc::from_file("tests/modelD.ttl", None, &mut buf_a).unwrap();
-        let turtle_b = TurtleDoc::from_file("tests/modelE.ttl", None, &mut buf_b).unwrap();
-        let expected =
-            TurtleDoc::from_file("tests/expectedDiffDAndE.ttl", None, &mut buf_e).unwrap();
-        let diff = turtle_a.difference(&turtle_b).unwrap();
-
-        assert!(!diff.to_string().is_empty());
-        assert_eq!(diff, expected);
-    }
-
-    #[test]
-    #[serial]
-    fn turtle_doc_diff_test() {
-        let mut buf_a = String::new();
-        let mut buf_b = String::new();
-        let _doc = include_str!("example/input.ttl");
-        let expected:TurtleDoc= (r#"
-        <mailto:person@example.net> <http://xmlns.com/foaf/0.1/name> "Anne Example-Person"^^<http://www.w3.org/2001/XMLSchema#string>
-        "#, None).try_into().unwrap();
-        let turtle_a = TurtleDoc::from_file("tests/modelA.ttl", None, &mut buf_a).unwrap();
-        let turtle_b = TurtleDoc::from_file("tests/modelB.ttl", None, &mut buf_b).unwrap();
-        let diff = turtle_a.difference(&turtle_b).unwrap();
-
-        dbg!(&expected);
-        assert_eq!(diff, expected);
-    }
-
-    #[test]
-    #[serial]
     fn turtle_doc_to_json_test() {
         let doc = r#"
                     @prefix foaf: <http://foaf.com/>.
@@ -1475,17 +1409,5 @@ mod test {
             dbg!(&doc);
             assert!(doc.is_ok());
         }
-    }
-
-    #[test]
-    #[serial]
-    fn test_complex_str() {
-        let s = include_str!("../../tests/49468c90-530b-11ee-8801-054ea2d949db.ttl");
-        let doc = TurtleDoc::try_from((s, None)).unwrap();
-        let stmts = doc.list_statements(Some(&Node::Iri(Cow::Borrowed("https://bree-echo.cipalschaubroeck.be/id/documenten/100b95c5-e76b-4d98-9b93-80d5f6efd3b0"))), 
-            Some(&Node::Iri(Cow::Borrowed("http://www.w3.org/ns/prov#value"))), None);
-        let stmt = stmts[0];
-        let object = &stmt.object;
-        println!("{}", object);
     }
 }

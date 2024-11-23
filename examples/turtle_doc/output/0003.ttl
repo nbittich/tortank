@@ -37,3 +37,4 @@
 <http://mu.semte.ch/services/ldes-time-fragmenter/versioned/3> <http://mu.semte.ch/vocabularies/ext/zonality> <http://lblod.data.gift/concepts/b651931b-923c-477c-8da9-fc7dd841fdcc>.
 <http://mu.semte.ch/services/ldes-time-fragmenter/versioned/3> <http://purl.org/dc/terms/isVersionOf> <http://data.vlaanderen.be/id/concept/Verkeersbordconcept/f9312556b1bdfbb278ec04033417152abbb254466df0069ff1894d0ea7a55482>.
 <http://mu.semte.ch/services/ldes-time-fragmenter/versioned/3> <http://www.w3.org/ns/prov#generatedAtTime> "2024-11-22T07:12:35.575Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>.
+

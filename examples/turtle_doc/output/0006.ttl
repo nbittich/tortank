@@ -1,0 +1,11 @@
+<http://example.org/Resource1> <http://www.w3.org/2000/01/rdf-schema#comment> "
+This is a long comment
+that spans multiple lines.
+
+
+It contains spaces, special characters like %, &, and @, and 
+even new lines. This format ensures the string is 
+properly encapsulated without breaking syntax rules.
+		
+You can add as much text as needed here.
+"^^<http://www.w3.org/2001/XMLSchema#string>.
