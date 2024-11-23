@@ -188,6 +188,18 @@ impl<'a> TryFrom<Vec<Statement<'a>>> for TurtleDoc<'a> {
     }
 }
 
+impl<'a> TryFrom<&'a Vec<RdfJsonTriple>> for TurtleDoc<'a> {
+    type Error = TurtleDocError;
+    fn try_from(triples: &'a Vec<RdfJsonTriple>) -> Result<Self, Self::Error> {
+        let mut doc = TurtleDoc::new(Vec::with_capacity(triples.len()), None)?;
+        for triple in triples {
+            let s: Statement = triple.try_into()?;
+            doc.statements.push(s);
+        }
+        Ok(doc)
+    }
+}
+
 impl<'a> TryFrom<&'a Vec<Statement<'a>>> for TurtleDoc<'a> {
     type Error = TurtleDocError;
     fn try_from(statements: &Vec<Statement<'a>>) -> Result<Self, Self::Error> {
@@ -1004,6 +1016,7 @@ impl<'a> TryFrom<&'a RdfJsonTriple> for Statement<'a> {
         fn rjs_to_node(n: &RdfJsonNode) -> Result<Node<'_>, TurtleDocError> {
             match n.typ.as_str() {
                 "uri" => return Ok(Node::Iri(Cow::Borrowed(&n.value))),
+                "bnode" => return Ok(Node::LabeledBlankNode(n.value.to_string())),
                 "literal" => match &n.datatype {
                     Some(dt) => match dt.as_str() {
                         XSD_DOUBLE => n
@@ -1090,7 +1103,7 @@ impl<'a> TryFrom<&'a RdfJsonTriple> for Statement<'a> {
 mod test {
     use crate::{
         shared::XSD_STRING,
-        turtle::turtle_doc::{Literal, Node, RdfJsonTriple, Statement, TurtleDoc, FAKE_UUID_GEN},
+        turtle::turtle_doc::{Literal, Node, RdfJsonTriple, Statement, TurtleDoc},
     };
     use serial_test::serial;
     use std::borrow::Cow;
@@ -1099,48 +1112,6 @@ mod test {
 
     use super::RdfJsonNodeResult;
 
-    #[test]
-    #[serial]
-    fn turtle_doc_test() {
-        let doc = include_str!("example/input.ttl");
-        let expected = include_str!("example/output.ttl");
-        let turtle: TurtleDoc<'_> = (doc, None).try_into().unwrap();
-        let expected_turtle: TurtleDoc<'_> = (expected, None).try_into().unwrap();
-        let expected_statements = expected_turtle.list_statements(None, None, None);
-        let statements = turtle.list_statements(None, None, None);
-        assert_eq!(&expected_statements.len(), &statements.len());
-
-        assert_eq!(expected_turtle.to_string(), turtle.to_string());
-    }
-    #[test]
-    #[serial]
-    fn turtle_doc_bnode_test() {
-        let doc = r#"
-        @prefix foaf: <http://foaf.com/>.
-        [ foaf:name "Alice" ] foaf:knows [
-    foaf:name "Bob" ;
-    foaf:lastName "George", "Joshua" ;
-    foaf:knows [
-        foaf:name "Eve" ] ;
-    foaf:mbox <bob@example.com>] .
-
-        "#;
-
-        let turtle: TurtleDoc<'_> = (doc, None).try_into().unwrap();
-
-        assert_eq!(8, turtle.statements.len());
-    }
-
-    #[test]
-    #[serial]
-    fn turtle_doc_collection_test() {
-        let s = r#"
-        @prefix : <http://example.com/>.
-        :a :b ( "apple" "banana" ) .
-        "#;
-        let turtle: TurtleDoc = (s, None).try_into().unwrap();
-        assert_eq!(5, turtle.statements.len());
-    }
     #[test]
     #[serial]
     fn turtle_doc_add_test() {
@@ -1201,105 +1172,6 @@ mod test {
 
     #[test]
     #[serial]
-    fn parse_test() {
-        let triple = r#"
-        # this is a comment
-         <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>. # this is a comment at EOF
-             <http://bittich.be/some/url/123><http://example.org/firstName2><http://n.com/nordine>.
-             <http://example.org/show/218> <http://www.w3.org/2000/01/rdf-schema#label> "That Seventies Show".
-             <http://example.org/show/218> <http://example.org/show/localName> "That Seventies Show"@en .
-         <http://bittich.be/some/url/1233>    <http://example.org/firstName><http://n.com/nordine>  .
-         <http://bittich.be/some/url/1243>    <http://example.org/firstName><http://n.com/nordine>  .
-         <http://bittich.be/some/url/1253>    <http://example.org/firstName><http://n.com/nordine>  .
-         #  the entire line is commented <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
-         #  the entire line is commented <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
-         #  the entire line is commented <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
-
-
-            #  the entire line is commented <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
-            _:alice <http://xmlns.com/foaf/0.1/knows> _:bob .
-            _:bob <http://xmlns.com/foaf/0.1/knows> _:alice .
-         <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordineB>  .
-         <http://example.org/show/218> <http://example.org/show/localName> "Cette Série des Années Septante"@fr-be .
-
-         <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/specificGravity> "1.663E-4"^^<http://www.w3.org/2001/XMLSchema#double> .     # xsd:double
-         "#;
-
-        let triples: TurtleDoc = (triple, None).try_into().unwrap();
-        assert_eq!(triples.len(), 12);
-    }
-
-    #[test]
-    #[serial]
-    fn test_multi_comments() {
-        let triples = r#"
-            #  the entire line is commented <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
-            #  the entire line is commented <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
-            #  the entire line is commented <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
-            _:alice <http://xmlns.com/foaf/0.1/knows> _:bob .
-            _:bob <http://xmlns.com/foaf/0.1/knows> _:alice .
-         <http://bittich.be/some/url/123>    <http://example.org/firstName><http://n.com/nordine>  .
-         <http://example.org/show/218> <http://example.org/show/localName> "Cette Série des Années Septante"@fr-be .
-
-         <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/specificGravity> "1.663E-4"^^<http://www.w3.org/2001/XMLSchema#double> .     # xsd:double
-         <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/specificGravity2> "1.663E-4"^^<http://www.w3.org/2001/XMLSchema#double> .     # xsd:double
-         <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/specificGravity> "1.663E-4"^^<http://www.w3.org/2001/XMLSchema#decimal> .     # xsd:double
-         <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/specificGravity> "1123"^^<http://www.w3.org/2001/XMLSchema#integer> .     # xsd:double
-         <http://en.wikipedia.org/wiki/Helium> <http://example.org/elements/nice> "true"^^<http://www.w3.org/2001/XMLSchema#boolean> .
-         "#;
-
-        let triples: TurtleDoc = (triples, None).try_into().unwrap();
-
-        assert_eq!(9, triples.len());
-    }
-
-    #[test]
-    #[serial]
-    fn test_labeled_bnode_err() {
-        FAKE_UUID_GEN.store(0, std::sync::atomic::Ordering::SeqCst);
-        let mut buf_c = String::new();
-        let turtle_c =
-            TurtleDoc::from_file("tests/labeled_bnode_err.ttl", None, &mut buf_c).unwrap();
-        assert_eq!(turtle_c.len(), 50)
-    }
-    #[test]
-    #[serial]
-    fn other_test() {
-        FAKE_UUID_GEN.store(0, std::sync::atomic::Ordering::SeqCst);
-        let mut buf_c = String::new();
-        let mut buf_e = String::new();
-
-        let turtle_c = TurtleDoc::from_file("tests/other.ttl", None, &mut buf_c).unwrap();
-        let turtle_expected =
-            TurtleDoc::from_file("tests/expected_other.ttl", None, &mut buf_e).unwrap();
-        println!("{}", turtle_c.difference(&turtle_expected).unwrap());
-        println!("{}", turtle_expected.difference(&turtle_c).unwrap());
-        assert_eq!(turtle_c.difference(&turtle_expected).unwrap().len(), 0);
-    }
-
-    #[test]
-    #[serial]
-    fn turtle_doc_to_json_test() {
-        let doc = r#"
-                    @prefix foaf: <http://foaf.com/>.
-                    [ foaf:name "Alice" ] foaf:knows [
-                foaf:name "Bob" ;
-                foaf:description "\"c'est l'histoire de la vie\"\n"@fr;
-                foaf:lastName "George", "Joshua" ;
-                foaf:age 34;
-                foaf:knows [
-                    foaf:name "Eve" ] ;
-                foaf:mbox <bob@example.com>] .
-
-        "#;
-        let turtle: TurtleDoc = (doc, None).try_into().unwrap();
-        let json_triples: Vec<RdfJsonTriple> = (&turtle).into();
-        assert_eq!(json_triples.len(), turtle.len());
-        println!("{}", serde_json::to_string_pretty(&json_triples).unwrap());
-    }
-
-    #[test]
-    #[serial]
     fn test_convert_rdf_triple_to_doc() {
         let triple = RdfJsonTriple {
             subject: RdfJsonNodeResult::SingleNode(super::RdfJsonNode {
@@ -1335,79 +1207,5 @@ mod test {
             }),
         };
         assert_eq!(stmt, expected);
-    }
-
-    #[test]
-    #[serial]
-    fn turtle_doc_to_json_bug_test() {
-        let doc = r#"
-                    @prefix foaf: <http://foaf.com/>.
-                    [ foaf:name "Alice" ] foaf:knows [
-                foaf:name "Bob" ;
-                foaf:description "\"c'est l'histoire de la vie\"\n"@fr;
-                foaf:lastName "George", "Joshua" ;
-                foaf:age 34;
-                foaf:knows [
-                    foaf:name "Eve" ] ;
-                foaf:mbox <bob@example.com>] .
-
-        "#;
-        let turtle: TurtleDoc = (doc, None).try_into().unwrap();
-        let stmts = turtle.list_statements(None, None, None);
-        let rdfjs: RdfJsonTriple = stmts[0].into();
-
-        dbg!(rdfjs);
-    }
-
-    #[test]
-    #[serial]
-    fn parse_date_test() {
-        let examples = [
-            "2000-01-12T12:13:14Z",
-            "2002-10-10+13:00",
-            "2002-10-10T00:00:00+13",
-            "2002-10-09T11:00:00Z",
-            "2002-10-10T00:00:00+05:00",
-            "2002-10-09T19:00:00Z",
-            "2002-09-29",
-            "20-09-2021",
-            "09/20/2021",
-            "20/09/2012",
-            "2023-08-30T10:31:00.080Z",
-        ];
-
-        for example in examples {
-            let ttl = format!(
-                r#"
-            @prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
-            @prefix test: <http://example.org/>.
-            
-            test:Date test:date "{example}"^^xsd:date.
-            "#
-            );
-            println!("testing {example}");
-            let doc = TurtleDoc::try_from((ttl.as_str(), None));
-            assert!(doc.is_ok());
-        }
-    }
-
-    #[test]
-    #[serial]
-    fn parse_time_test() {
-        let examples = ["00:00:00", "18:00"];
-        for example in examples {
-            let ttl = format!(
-                r#"
-            @prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
-            @prefix test: <http://example.org/>.
-            
-            test:Date test:date "{example}"^^xsd:time.
-            "#
-            );
-            println!("testing {example}");
-            let doc = TurtleDoc::try_from((ttl.as_str(), None));
-            dbg!(&doc);
-            assert!(doc.is_ok());
-        }
     }
 }

@@ -1,0 +1,50 @@
+<http://example.org/ns#ComplexResource> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/ns#Type1> .
+<http://example.org/ns#ComplexResource> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/ns#Type2> .
+<http://example.org/ns#ComplexResource> <http://xmlns.com/foaf/0.1/name> "Complex Resource"^^<http://www.w3.org/2001/XMLSchema#string> .
+<http://example.org/ns#ComplexResource> <http://purl.org/dc/elements/1.1/created> "2024-11-22T12:34:56Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> .
+<http://example.org/ns#ComplexResource> <http://example.org/ns#hasValue> "42"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://example.org/ns#ComplexResource> <http://example.org/ns#hasValue> "forty-two"@en .
+<http://example.org/ns#ComplexResource> <http://example.org/ns#hasNestedObject> _:1 .
+<http://example.org/ns#ComplexResource> <http://example.org/ns#hasCollection> _:2 .
+<http://example.org/ns#ComplexResource> <http://www.w3.org/2004/02/skos/core#note> "This resource demonstrates a variety of RDF features."@en .
+<http://example.org/ns#ComplexResource> <http://www.w3.org/2002/07/owl#sameAs> <http://example.org/ns#AliasResource> .
+_:1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/ns#NestedType> .
+_:1 <http://example.org/ns#nestedProperty> "Nested Value"^^<http://www.w3.org/2001/XMLSchema#string> .
+_:1 <http://example.org/ns#linksTo> <http://example.org/another-resource> .
+_:2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Item1"^^<http://www.w3.org/2001/XMLSchema#string> .
+_:2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:3 .
+_:3 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Item2"^^<http://www.w3.org/2001/XMLSchema#string> .
+_:3 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:5 .
+_:4 <http://example.org/ns#innerProperty> "Inner Value"^^<http://www.w3.org/2001/XMLSchema#string> .
+_:5 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:4 .
+_:5 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+<http://example.org/ns#Type1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
+<http://example.org/ns#Type1> <http://www.w3.org/2000/01/rdf-schema#label> "Type 1"@en .
+<http://example.org/ns#Type1> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://example.org/ns#SuperType> .
+<http://example.org/ns#SuperType> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
+<http://example.org/ns#SuperType> <http://www.w3.org/2000/01/rdf-schema#label> "Super Type"@en .
+<http://example.org/ns#SuperType> <http://www.w3.org/2000/01/rdf-schema#comment> "A superclass for demonstration purposes."@en .
+_:6 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/ns#AnonymousType> .
+_:6 <http://example.org/ns#anonymousProperty> "I am a blank node."^^<http://www.w3.org/2001/XMLSchema#string> .
+<http://example.org/ns#MultilingualResource> <http://purl.org/dc/elements/1.1/title> "T\u00EDtulo en Espa\u00F1ol"@es .
+<http://example.org/ns#MultilingualResource> <http://purl.org/dc/elements/1.1/title> "Title in English"@en .
+<http://example.org/ns#MultilingualResource> <http://purl.org/dc/elements/1.1/title> "Titre en Fran\u00E7ais"@fr .
+<http://example.org/ns#DataTypedLiterals> <http://example.org/ns#integerValue> "123"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://example.org/ns#DataTypedLiterals> <http://example.org/ns#decimalValue> "123.45"^^<http://www.w3.org/2001/XMLSchema#decimal> .
+<http://example.org/ns#DataTypedLiterals> <http://example.org/ns#booleanValue> "true"^^<http://www.w3.org/2001/XMLSchema#boolean> .
+<http://example.org/ns#DataTypedLiterals> <http://example.org/ns#customValue> "custom-datatype"^^<http://example.org/ns#CustomDatatype> .
+_:7 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .
+_:7 <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <http://example.org/ns#ComplexResource> .
+_:7 <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://purl.org/dc/elements/1.1/creator> .
+_:7 <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> "Author Name"@en .
+_:8 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "First Item"^^<http://www.w3.org/2001/XMLSchema#string> .
+_:8 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:11 .
+_:9 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Nested Item 1"^^<http://www.w3.org/2001/XMLSchema#string> .
+_:9 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:10 .
+_:10 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Nested Item 2"^^<http://www.w3.org/2001/XMLSchema#string> .
+_:10 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:11 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:9 .
+_:11 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:12 .
+_:12 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Second Item"^^<http://www.w3.org/2001/XMLSchema#string> .
+_:12 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+<http://example.org/ns#ComplexList> <http://example.org/ns#hasList> _:8 .

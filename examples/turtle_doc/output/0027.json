@@ -1,0 +1,149 @@
+[
+  {
+    "subject": {
+      "type": "bnode",
+      "value": "1"
+    },
+    "predicate": {
+      "type": "uri",
+      "value": "http://foaf.com/name"
+    },
+    "object": {
+      "type": "literal",
+      "datatype": "http://www.w3.org/2001/XMLSchema#string",
+      "value": "Alice"
+    }
+  },
+  {
+    "subject": {
+      "type": "bnode",
+      "value": "2"
+    },
+    "predicate": {
+      "type": "uri",
+      "value": "http://foaf.com/name"
+    },
+    "object": {
+      "type": "literal",
+      "datatype": "http://www.w3.org/2001/XMLSchema#string",
+      "value": "Bob"
+    }
+  },
+  {
+    "subject": {
+      "type": "bnode",
+      "value": "2"
+    },
+    "predicate": {
+      "type": "uri",
+      "value": "http://foaf.com/description"
+    },
+    "object": {
+      "type": "literal",
+      "lang": "fr",
+      "value": "\"c'est l'histoire de la vie\"\n"
+    }
+  },
+  {
+    "subject": {
+      "type": "bnode",
+      "value": "2"
+    },
+    "predicate": {
+      "type": "uri",
+      "value": "http://foaf.com/lastName"
+    },
+    "object": {
+      "type": "literal",
+      "datatype": "http://www.w3.org/2001/XMLSchema#string",
+      "value": "George"
+    }
+  },
+  {
+    "subject": {
+      "type": "bnode",
+      "value": "2"
+    },
+    "predicate": {
+      "type": "uri",
+      "value": "http://foaf.com/lastName"
+    },
+    "object": {
+      "type": "literal",
+      "datatype": "http://www.w3.org/2001/XMLSchema#string",
+      "value": "Joshua"
+    }
+  },
+  {
+    "subject": {
+      "type": "bnode",
+      "value": "2"
+    },
+    "predicate": {
+      "type": "uri",
+      "value": "http://foaf.com/age"
+    },
+    "object": {
+      "type": "literal",
+      "datatype": "http://www.w3.org/2001/XMLSchema#integer",
+      "value": "34"
+    }
+  },
+  {
+    "subject": {
+      "type": "bnode",
+      "value": "3"
+    },
+    "predicate": {
+      "type": "uri",
+      "value": "http://foaf.com/name"
+    },
+    "object": {
+      "type": "literal",
+      "datatype": "http://www.w3.org/2001/XMLSchema#string",
+      "value": "Eve"
+    }
+  },
+  {
+    "subject": {
+      "type": "bnode",
+      "value": "2"
+    },
+    "predicate": {
+      "type": "uri",
+      "value": "http://foaf.com/knows"
+    },
+    "object": {
+      "type": "bnode",
+      "value": "3"
+    }
+  },
+  {
+    "subject": {
+      "type": "bnode",
+      "value": "2"
+    },
+    "predicate": {
+      "type": "uri",
+      "value": "http://foaf.com/mbox"
+    },
+    "object": {
+      "type": "uri",
+      "value": "bob@example.com"
+    }
+  },
+  {
+    "subject": {
+      "type": "bnode",
+      "value": "1"
+    },
+    "predicate": {
+      "type": "uri",
+      "value": "http://foaf.com/knows"
+    },
+    "object": {
+      "type": "bnode",
+      "value": "2"
+    }
+  }
+]

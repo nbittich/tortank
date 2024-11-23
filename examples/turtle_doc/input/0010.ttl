@@ -1,0 +1,5 @@
+
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+            @prefix test: <http://example.org/>.
+            
+            test:Date test:date "00:00:00"^^xsd:time,"18:00"^^xsd:time.

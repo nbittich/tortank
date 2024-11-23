@@ -1,0 +1,7 @@
+@prefix foaf: <http://foaf.com/>.
+        [ foaf:name "Alice" ] foaf:knows [
+    foaf:name "Bob" ;
+    foaf:lastName "George", "Joshua" ;
+    foaf:knows [
+        foaf:name "Eve" ] ;
+    foaf:mbox <bob@example.com>] .

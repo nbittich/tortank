@@ -1,10 +1,12 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{fs::File, io::BufReader, path::PathBuf, str::FromStr};
 
-use crate::turtle::turtle_doc::TurtleDoc;
+use crate::turtle::turtle_doc::{RdfJsonTriple, TurtleDoc};
 
+const DEBUG_TTL: bool = false;
 fn cmp_input_file(
     test_name: &str,
     diff_file: Option<&str>,
+    output_json: bool,
     directory: &str,
     well_known_prefix: Option<String>,
 ) {
@@ -19,6 +21,22 @@ fn cmp_input_file(
         &mut input_buf,
     )
     .unwrap();
+
+    if output_json {
+        let f = File::open(
+            PathBuf::from_str(directory)
+                .map(|p| p.join("output").join(format!("{test_name}.json")))
+                .unwrap(),
+        )
+        .unwrap();
+        let output: Vec<RdfJsonTriple> = serde_json::from_reader(BufReader::new(f)).unwrap();
+        assert_eq!(input.len(), output.len());
+        let output_doc: TurtleDoc = (&output).try_into().unwrap();
+        assert_eq!(input.difference(&output_doc).unwrap().len(), 0);
+        let input: Vec<RdfJsonTriple> = (&input).into();
+        assert_eq!(input, output);
+        return;
+    }
 
     let output = TurtleDoc::from_file(
         PathBuf::from_str(directory)
@@ -43,24 +61,31 @@ fn cmp_input_file(
         assert_eq!(input.difference(&output).unwrap().len(), 0);
     } else {
         let diff = input.difference(&output).unwrap();
-        println!(
-            "{}",
-            input
-                .to_string()
-                .replace("\n", "<NEWLINE>")
-                .replace("\t", "<TAB>")
-                .replace(" ", "<SPACE>"),
-        );
-        println!("===");
-        println!(
-            "{}",
-            output
-                .to_string()
-                .replace("\n", "<NEWLINE>")
-                .replace("\t", "<TAB>")
-                .replace(" ", "<SPACE>"),
-        );
+        if DEBUG_TTL {
+            println!(
+                "{}",
+                input
+                    .to_string()
+                    .replace("\n", "<NEWLINE>")
+                    .replace("\t", "<TAB>")
+                    .replace(" ", "<SPACE>"),
+            );
+            println!("===");
+            println!(
+                "{}",
+                output
+                    .to_string()
+                    .replace("\n", "<NEWLINE>")
+                    .replace("\t", "<TAB>")
+                    .replace(" ", "<SPACE>"),
+            );
+        }
         assert_eq!(input.len(), output.len());
+        if !diff.is_empty() {
+            println!("========== Differences ==========");
+            println!("{diff}");
+            println!("========== Differences ==========");
+        }
         assert_eq!(diff.len(), 0);
     }
 }

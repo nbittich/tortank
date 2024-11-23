@@ -1,3 +1,4 @@
+
 _:2 <http://example.org/employeeName> "Charlie" .
 _:2 <http://example.org/worksAt> <http://example.org/techCompany> .
 _:2 <http://example.org/employeeId> "EMP003" .
