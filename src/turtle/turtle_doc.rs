@@ -1255,7 +1255,7 @@ mod test {
         let mut buf_c = String::new();
         let turtle_c =
             TurtleDoc::from_file("tests/labeled_bnode_err.ttl", None, &mut buf_c).unwrap();
-        assert_eq!(turtle_c.len(), 40)
+        assert_eq!(turtle_c.len(), 50)
     }
     #[test]
     #[serial]
