@@ -357,7 +357,13 @@ pub(crate) mod triple {
         let parse_label = delimited(
             tag(BLANK_NODE_LABEL),
             take_while(|s: char| {
-                !s.is_whitespace() && s != '.' && s != ';' && s != '<' && s != '(' && s != '['
+                !s.is_whitespace()
+                    && s != '.'
+                    && s != ';'
+                    && s != '<'
+                    && s != '('
+                    && s != '['
+                    && s != '"'
             }),
             space0,
         );
