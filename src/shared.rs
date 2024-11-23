@@ -12,6 +12,7 @@ pub const NS_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 pub const RDF_NIL: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#nil";
 pub const RDF_FIRST: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#first";
 pub const RDF_REST: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest";
+#[allow(unused)]
 pub const DEFAULT_WELL_KNOWN_PREFIX: &str = "http://example.org/.well-known/genid#";
 pub static DATE_FORMATS: [&str; 9] = [
     "%Y-%m-%dT%H:%M:%S%.3f%Z",

@@ -7,15 +7,10 @@
 _:1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/ns#NestedType>.
 _:1 <http://example.org/ns#nestedProperty> "Nested Value"^^<http://www.w3.org/2001/XMLSchema#string>.
 _:1 <http://example.org/ns#linksTo> <http://example.org/another-resource>.
-<http://example.org/ns#ComplexResource> <http://example.org/ns#hasNestedObject> _:1.
 _:2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Item1"^^<http://www.w3.org/2001/XMLSchema#string>.
 _:3 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Item2"^^<http://www.w3.org/2001/XMLSchema#string>.
 _:5 <http://example.org/ns#innerProperty> "Inner Value"^^<http://www.w3.org/2001/XMLSchema#string>.
-_:4 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:5.
 _:4 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil>.
-_:3 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:4.
-_:2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:3.
-<http://example.org/ns#ComplexResource> <http://example.org/ns#hasCollection> _:2.
 <http://example.org/ns#ComplexResource> <http://www.w3.org/2004/02/skos/core#note> "This resource demonstrates a variety of RDF features."@en.
 <http://example.org/ns#ComplexResource> <http://www.w3.org/2002/07/owl#sameAs> <http://example.org/ns#AliasResource>.
 <http://example.org/ns#Type1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class>.
@@ -41,10 +36,5 @@ _:8 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "First Item"^^<http://www
 _:10 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Nested Item 1"^^<http://www.w3.org/2001/XMLSchema#string>.
 _:11 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Nested Item 2"^^<http://www.w3.org/2001/XMLSchema#string>.
 _:11 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil>.
-_:10 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:11.
-_:9 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:10.
 _:12 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Second Item"^^<http://www.w3.org/2001/XMLSchema#string>.
 _:12 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil>.
-_:9 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:12.
-_:8 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:9.
-<http://example.org/ns#ComplexList> <http://example.org/ns#hasList> _:8.

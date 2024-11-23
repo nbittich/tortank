@@ -5,17 +5,17 @@
 <http://example.org/hasISBN> <http://www.w3.org/2000/01/rdf-schema#domain> <http://example.org/Book> .
 <http://example.org/hasISBN> <http://www.w3.org/2000/01/rdf-schema#label> "International Standard Book Number"@en .
 <http://example.org/hasISBN> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#DatatypeProperty> .
-<http://example.org/Publisher> <http://www.w3.org/2002/07/owl#equivalentClass> <http://example.org/.well-known/genid#17> .
+<http://example.org/Publisher> <http://www.w3.org/2002/07/owl#equivalentClass> _:17 .
 <http://example.org/Publisher> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
-<http://example.org/.well-known/genid#15> <http://xmlns.com/foaf/0.1/knows> <http://example.org/.well-known/genid#16> .
-<http://example.org/.well-known/genid#15> <http://xmlns.com/foaf/0.1/mbox> <mailto:alice.smith@university.edu> .
-<http://example.org/.well-known/genid#15> <http://xmlns.com/foaf/0.1/name> "Alice Smith" .
-<http://example.org/.well-known/genid#15> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://xmlns.com/foaf/0.1/Person> .
+_:15 <http://xmlns.com/foaf/0.1/knows> _:16 .
+_:15 <http://xmlns.com/foaf/0.1/mbox> <mailto:alice.smith@university.edu> .
+_:15 <http://xmlns.com/foaf/0.1/name> "Alice Smith" .
+_:15 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://xmlns.com/foaf/0.1/Person> .
 <http://example.org/Book1> <http://example.org/relatedTo> <http://example.org/Book3> .
 <http://example.org/Book1> <http://example.org/relatedTo> <http://example.org/Book2> .
 <http://example.org/Book1> <http://example.org/hasISBN> "978-3-16-148410-0" .
 <http://example.org/Book1> <http://purl.org/dc/elements/1.1/date> "2024-11-22"^^<http://www.w3.org/2001/XMLSchema#date> .
-<http://example.org/Book1> <http://purl.org/dc/elements/1.1/creator> <http://example.org/.well-known/genid#1> .
+<http://example.org/Book1> <http://purl.org/dc/elements/1.1/creator> _:1 .
 <http://example.org/Book1> <http://purl.org/dc/elements/1.1/title> "Complex RDF Document Design"@en .
 <http://example.org/Book1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/Book> .
 <http://example.org/Statement1> <http://www.w3.org/ns/prov#wasAttributedTo> <http://example.org/Agent1> .
@@ -24,63 +24,63 @@
 <http://example.org/Statement1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://example.org/relatedTo> .
 <http://example.org/Statement1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <http://example.org/Book1> .
 <http://example.org/Statement1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .
-<http://example.org/.well-known/genid#3>  <http://xmlns.com/foaf/0.1/affiliation> "Tech Reviews Inc." .
-<http://example.org/.well-known/genid#3>  <http://xmlns.com/foaf/0.1/name> "John Reviewer" .
-<http://example.org/.well-known/genid#3>  <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://xmlns.com/foaf/0.1/Person> .
-<http://example.org/.well-known/genid#4> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://example.org/.well-known/genid#5> .
-<http://example.org/.well-known/genid#4> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "RDF" .
-<http://example.org/.well-known/genid#8>  <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://example.org/.well-known/genid#10> .
-<http://example.org/.well-known/genid#8>  <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/.well-known/genid#9> .
-<http://example.org/.well-known/genid#6>  <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
-<http://example.org/.well-known/genid#6>  <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Semantic Web" .
-<http://example.org/.well-known/genid#12> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
-<http://example.org/.well-known/genid#12> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/.well-known/genid#13> .
-<http://example.org/Book> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://example.org/.well-known/genid#7> .
+_:3  <http://xmlns.com/foaf/0.1/affiliation> "Tech Reviews Inc." .
+_:3  <http://xmlns.com/foaf/0.1/name> "John Reviewer" .
+_:3  <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://xmlns.com/foaf/0.1/Person> .
+_:4 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:5 .
+_:4 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "RDF" .
+_:8  <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:10 .
+_:8  <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:9 .
+_:6  <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:6  <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Semantic Web" .
+_:12 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:12 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:13 .
+<http://example.org/Book> <http://www.w3.org/2000/01/rdf-schema#subClassOf> _:7 .
 <http://example.org/Book> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
-<http://example.org/Book2> <http://example.org/metadata> <http://example.org/.well-known/genid#2> .
+<http://example.org/Book2> <http://example.org/metadata> _:2 .
 <http://example.org/Book2> <http://purl.org/dc/elements/1.1/title> "Advanced RDF Features"@en .
 <http://example.org/Book2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/Book> .
-<http://example.org/.well-known/genid#19> <http://www.w3.org/2002/07/owl#someValuesFrom> <http://www.w3.org/2001/XMLSchema#anyURI> .
-<http://example.org/.well-known/genid#19> <http://www.w3.org/2002/07/owl#onProperty> <http://xmlns.com/foaf/0.1/homepage> .
-<http://example.org/.well-known/genid#19> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Restriction> .
-<http://example.org/.well-known/genid#13> <http://purl.org/dc/elements/1.1/title> "Advanced Topics"@en .
-<http://example.org/.well-known/genid#7> <http://www.w3.org/2002/07/owl#allValuesFrom> <http://www.w3.org/2001/XMLSchema#string> .
-<http://example.org/.well-known/genid#7> <http://www.w3.org/2002/07/owl#onProperty> <http://example.org/hasISBN> .
-<http://example.org/.well-known/genid#7> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Restriction> .
-<http://example.org/.well-known/genid#10> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://example.org/.well-known/genid#12> .
-<http://example.org/.well-known/genid#10> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/.well-known/genid#11> .
-<http://example.org/Book3> <http://example.org/publishedBy> <http://example.org/.well-known/genid#14> .
-<http://example.org/Book3> <http://example.org/chapters> <http://example.org/.well-known/genid#8>  .
+_:19 <http://www.w3.org/2002/07/owl#someValuesFrom> <http://www.w3.org/2001/XMLSchema#anyURI> .
+_:19 <http://www.w3.org/2002/07/owl#onProperty> <http://xmlns.com/foaf/0.1/homepage> .
+_:19 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Restriction> .
+_:13 <http://purl.org/dc/elements/1.1/title> "Advanced Topics"@en .
+_:7 <http://www.w3.org/2002/07/owl#allValuesFrom> <http://www.w3.org/2001/XMLSchema#string> .
+_:7 <http://www.w3.org/2002/07/owl#onProperty> <http://example.org/hasISBN> .
+_:7 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Restriction> .
+_:10 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:12 .
+_:10 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:11 .
+<http://example.org/Book3> <http://example.org/publishedBy> _:14 .
+<http://example.org/Book3> <http://example.org/chapters> _:8  .
 <http://example.org/Book3> <http://purl.org/dc/elements/1.1/title> "Apprendre RDF avec des exemples"@fr .
 <http://example.org/Book3> <http://purl.org/dc/elements/1.1/title> "Learning RDF with Examples"@en .
 <http://example.org/Book3> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/Book> .
-<http://example.org/.well-known/genid#20> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
-<http://example.org/.well-known/genid#20> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/.well-known/genid#21> .
-<http://example.org/.well-known/genid#21> <http://www.w3.org/2002/07/owl#allValuesFrom> <http://www.w3.org/2001/XMLSchema#string> .
-<http://example.org/.well-known/genid#21> <http://www.w3.org/2002/07/owl#onProperty> <http://xmlns.com/foaf/0.1/name> .
-<http://example.org/.well-known/genid#21> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Restriction> .
-<http://example.org/.well-known/genid#14> <http://xmlns.com/foaf/0.1/homepage> <http://example.org/publishers/rdf> .
-<http://example.org/.well-known/genid#14> <http://xmlns.com/foaf/0.1/name> "RDF Publishers" .
-<http://example.org/.well-known/genid#9> <http://purl.org/dc/elements/1.1/title> "Introduction to RDF"@en .
-<http://example.org/.well-known/genid#16> <http://xmlns.com/foaf/0.1/mbox> <mailto:jane.doe@example.org> .
-<http://example.org/.well-known/genid#16> <http://xmlns.com/foaf/0.1/name> "Jane Doe" .
-<http://example.org/.well-known/genid#16> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://xmlns.com/foaf/0.1/Person> .
-<http://example.org/.well-known/genid#17> <http://www.w3.org/2002/07/owl#intersectionOf> <http://example.org/.well-known/genid#18> .
-<http://example.org/.well-known/genid#17> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
-<http://example.org/.well-known/genid#5> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://example.org/.well-known/genid#6>  .
-<http://example.org/.well-known/genid#5> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Turtle" .
-<http://example.org/ResearchPaper1> <http://example.org/authoredBy> <http://example.org/.well-known/genid#15> .
+_:20 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:20 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:21 .
+_:21 <http://www.w3.org/2002/07/owl#allValuesFrom> <http://www.w3.org/2001/XMLSchema#string> .
+_:21 <http://www.w3.org/2002/07/owl#onProperty> <http://xmlns.com/foaf/0.1/name> .
+_:21 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Restriction> .
+_:14 <http://xmlns.com/foaf/0.1/homepage> <http://example.org/publishers/rdf> .
+_:14 <http://xmlns.com/foaf/0.1/name> "RDF Publishers" .
+_:9 <http://purl.org/dc/elements/1.1/title> "Introduction to RDF"@en .
+_:16 <http://xmlns.com/foaf/0.1/mbox> <mailto:jane.doe@example.org> .
+_:16 <http://xmlns.com/foaf/0.1/name> "Jane Doe" .
+_:16 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://xmlns.com/foaf/0.1/Person> .
+_:17 <http://www.w3.org/2002/07/owl#intersectionOf> _:18 .
+_:17 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
+_:5 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:6  .
+_:5 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "Turtle" .
+<http://example.org/ResearchPaper1> <http://example.org/authoredBy> _:15 .
 <http://example.org/ResearchPaper1> <http://example.org/cites> <http://example.org/Book3> .
 <http://example.org/ResearchPaper1> <http://example.org/cites> <http://example.org/Book2> .
 <http://example.org/ResearchPaper1> <http://example.org/cites> <http://example.org/Book1> .
 <http://example.org/ResearchPaper1> <http://purl.org/dc/elements/1.1/title> "On the Formal Semantics of RDF" .
 <http://example.org/ResearchPaper1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/Document> .
-<http://example.org/.well-known/genid#2> <http://example.org/keywords> <http://example.org/.well-known/genid#4> .
-<http://example.org/.well-known/genid#2> <http://example.org/reviewedBy> <http://example.org/.well-known/genid#3>  .
-<http://example.org/.well-known/genid#2> <http://example.org/confidence> "0.98"^^<http://www.w3.org/2001/XMLSchema#decimal> .
-<http://example.org/.well-known/genid#1> <http://xmlns.com/foaf/0.1/mbox> <mailto:jane.doe@example.org> .
-<http://example.org/.well-known/genid#1> <http://xmlns.com/foaf/0.1/name> "Jane Doe" .
-<http://example.org/.well-known/genid#1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://xmlns.com/foaf/0.1/Person> .
-<http://example.org/.well-known/genid#11> <http://purl.org/dc/elements/1.1/title> "Complex Data Structures"@en .
-<http://example.org/.well-known/genid#18> <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://example.org/.well-known/genid#20> .
-<http://example.org/.well-known/genid#18> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/.well-known/genid#19> .
+_:2 <http://example.org/keywords> _:4 .
+_:2 <http://example.org/reviewedBy> _:3  .
+_:2 <http://example.org/confidence> "0.98"^^<http://www.w3.org/2001/XMLSchema#decimal> .
+_:1 <http://xmlns.com/foaf/0.1/mbox> <mailto:jane.doe@example.org> .
+_:1 <http://xmlns.com/foaf/0.1/name> "Jane Doe" .
+_:1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://xmlns.com/foaf/0.1/Person> .
+_:11 <http://purl.org/dc/elements/1.1/title> "Complex Data Structures"@en .
+_:18 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:20 .
+_:18 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:19 .

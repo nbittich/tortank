@@ -261,7 +261,32 @@ mod test {
         );
     }
 
-    #[test] // NORDINE
+    #[test]
+    fn predicate_labeled_bnode_test() {
+        let s = r#"
+        <http://example.org/ns#ComplexResource> <http://example.org/ns#hasNestedObject> _:1.
+
+        "#;
+        let (rest, res) = statements(s).unwrap();
+        assert!(rest.trim().is_empty());
+        assert_eq!(
+            res,
+            vec![TurtleValue::Statement {
+                subject: Box::new(TurtleValue::Iri(Iri::Enclosed(
+                    "http://example.org/ns#ComplexResource",
+                ),)),
+                predicate_objects: [TurtleValue::PredicateObject {
+                    predicate: Box::new(TurtleValue::Iri(Iri::Enclosed(
+                        "http://example.org/ns#hasNestedObject",
+                    ),)),
+                    object: Box::new(TurtleValue::BNode(BlankNode::Labeled("1",),)),
+                },]
+                .into(),
+            },]
+        );
+    }
+
+    #[test]
     fn collection_test_from_other() {
         let s = r#"
         ex:techProducts ex:hasProducts ( ex:product1 ex:product2 )."#;

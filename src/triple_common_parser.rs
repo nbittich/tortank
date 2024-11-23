@@ -356,7 +356,7 @@ pub(crate) mod triple {
     pub(crate) fn labeled_bnode(s: &str) -> ParserResult<BlankNode> {
         let parse_label = delimited(
             tag(BLANK_NODE_LABEL),
-            take_while(|s: char| !s.is_whitespace()),
+            take_while(|s: char| !s.is_whitespace() && s != '.' && s != ';' && s != '<'),
             space0,
         );
 

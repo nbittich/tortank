@@ -1,7 +1,8 @@
+use crate::grammar::BLANK_NODE_LABEL;
 use crate::shared::{
-    DATE_FORMATS, DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, DEFAULT_TIME_FORMAT,
-    DEFAULT_WELL_KNOWN_PREFIX, RDF_FIRST, RDF_NIL, RDF_REST, TIME_FORMATS, XSD_BOOLEAN, XSD_DATE,
-    XSD_DATE_TIME, XSD_DECIMAL, XSD_DOUBLE, XSD_INTEGER, XSD_TIME,
+    DATE_FORMATS, DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, DEFAULT_TIME_FORMAT, RDF_FIRST,
+    RDF_NIL, RDF_REST, TIME_FORMATS, XSD_BOOLEAN, XSD_DATE, XSD_DATE_TIME, XSD_DECIMAL, XSD_DOUBLE,
+    XSD_INTEGER, XSD_TIME,
 };
 use crate::triple_common_parser::{comments, Literal as ASTLiteral};
 use crate::triple_common_parser::{BlankNode, Iri};
@@ -40,7 +41,7 @@ fn get_uuid() -> String {
 
 struct Context<'a> {
     base: Option<&'a str>,
-    well_known_prefix: String,
+    well_known_prefix: Option<String>,
     prefixes: BTreeMap<&'a str, &'a str>,
 }
 #[derive(Serialize, PartialEq, Deserialize, Clone, Debug)]
@@ -88,6 +89,7 @@ pub enum Node<'a> {
     Literal(Literal<'a>),
     Ref(Arc<Node<'a>>),
     List(Vec<Node<'a>>),
+    LabeledBlankNode(String),
 }
 #[derive(PartialEq, PartialOrd, Debug, Clone)]
 pub struct Statement<'a> {
@@ -97,7 +99,7 @@ pub struct Statement<'a> {
 }
 #[derive(PartialEq, PartialOrd, Debug, Default)]
 pub struct TurtleDoc<'a> {
-    well_known_prefix: String,
+    well_known_prefix: Option<String>,
     base: Option<&'a str>,
     prefixes: BTreeMap<Cow<'a, str>, Cow<'a, str>>,
     statements: Vec<Statement<'a>>,
@@ -139,20 +141,35 @@ impl<'a> PartialEq for Node<'a> {
         match (self, other) {
             (Node::Iri(n1), Node::Iri(n2)) => n1.eq(n2),
             (Node::Literal(n1), Node::Literal(n2)) => n1 == n2,
-            (l @ Node::Literal(_) | l @ Node::Iri(_) | l @ Node::List(_), Node::Ref(n2)) => {
-                n2.as_ref().eq(l)
-            }
+            (
+                l @ Node::Literal(_)
+                | l @ Node::Iri(_)
+                | l @ Node::List(_)
+                | l @ Node::LabeledBlankNode(_),
+                Node::Ref(n2),
+            ) => n2.as_ref().eq(l),
 
-            (Node::Ref(n1), r @ Node::Iri(_) | r @ Node::Literal(_) | r @ Node::List(_)) => {
-                n1.as_ref().eq(r)
-            }
+            (
+                Node::Ref(n1),
+                r @ Node::Iri(_)
+                | r @ Node::Literal(_)
+                | r @ Node::List(_)
+                | r @ Node::LabeledBlankNode(_),
+            ) => n1.as_ref().eq(r),
             (Node::Ref(n1), Node::Ref(n2)) => n1 == n2,
             (Node::List(n1), Node::List(n2)) => n1 == n2,
+            (Node::LabeledBlankNode(n1), Node::LabeledBlankNode(n2)) => n1 == n2,
             (Node::Iri(_), Node::Literal(_))
+            | (Node::Iri(_), Node::LabeledBlankNode(_))
             | (Node::Iri(_), Node::List(_))
+            | (Node::LabeledBlankNode(_), Node::Iri(_))
+            | (Node::LabeledBlankNode(_), Node::Literal(_))
+            | (Node::LabeledBlankNode(_), Node::List(_))
             | (Node::Literal(_), Node::Iri(_))
+            | (Node::Literal(_), Node::LabeledBlankNode(_))
             | (Node::Literal(_), Node::List(_))
             | (Node::List(_), Node::Iri(_))
+            | (Node::List(_), Node::LabeledBlankNode(_))
             | (Node::List(_), Node::Literal(_)) => false,
         }
     }
@@ -407,8 +424,8 @@ impl<'a> TurtleDoc<'a> {
         turtle_values: Vec<TurtleValue<'a>>,
         well_known_prefix: Option<String>,
     ) -> Result<Self, TurtleDocError> {
-        let well_known_prefix =
-            well_known_prefix.unwrap_or_else(|| DEFAULT_WELL_KNOWN_PREFIX.to_string());
+        // let well_known_prefix =
+        //     well_known_prefix.unwrap_or_else(|| DEFAULT_WELL_KNOWN_PREFIX.to_string());
         let mut context = Context {
             base: None,
             well_known_prefix,
@@ -606,7 +623,6 @@ impl<'a> TurtleDoc<'a> {
         ctx: &'x Context,
         statements: &'x mut Vec<Statement<'a>>,
     ) -> Result<Node<'a>, TurtleDocError> {
-        let well_known_prefix = ctx.well_known_prefix.as_str();
         match value {
             v @ TurtleValue::Iri(_) | v @ TurtleValue::Literal(_) => {
                 let prefixes: BTreeMap<Cow<str>, Cow<str>> = ctx
@@ -618,11 +634,19 @@ impl<'a> TurtleDoc<'a> {
                 Self::simple_turtle_value_to_node(v, base, prefixes, true)
             }
             TurtleValue::BNode(BlankNode::Labeled(label)) => {
-                Ok(Node::Iri(Cow::Owned(well_known_prefix.to_owned() + label)))
+                if let Some(well_known_prefix) = ctx.well_known_prefix.as_ref() {
+                    Ok(Node::Iri(Cow::Owned(well_known_prefix.to_owned() + label)))
+                } else {
+                    Ok(Node::LabeledBlankNode(label.into()))
+                }
             }
             TurtleValue::BNode(BlankNode::Unlabeled) => {
                 let uuid = get_uuid();
-                Ok(Node::Iri(Cow::Owned(format!("{well_known_prefix}{uuid}"))))
+                if let Some(well_known_prefix) = ctx.well_known_prefix.as_ref() {
+                    Ok(Node::Iri(Cow::Owned(format!("{well_known_prefix}{uuid}"))))
+                } else {
+                    Ok(Node::LabeledBlankNode(uuid.replace("-", "")))
+                }
             }
             TurtleValue::Statement {
                 subject,
@@ -786,7 +810,14 @@ impl From<&Node<'_>> for RdfJsonNodeResult {
     fn from(value: &Node<'_>) -> Self {
         let typ_uri = "uri".into();
         let typ_literal = "literal".into();
+        let typ_bnode = "bnode".into();
         match value {
+            Node::LabeledBlankNode(bnode) => RdfJsonNodeResult::SingleNode(RdfJsonNode {
+                typ: typ_bnode,
+                datatype: None,
+                lang: None,
+                value: bnode.into(),
+            }),
             Node::Iri(iri) => RdfJsonNodeResult::SingleNode(RdfJsonNode {
                 typ: typ_uri,
                 datatype: None,
@@ -915,6 +946,9 @@ impl Display for Node<'_> {
             ),
             Node::Literal(Literal::Time(d)) => {
                 write!(f, r#""{}"^^<{}>"#, d.format(DEFAULT_TIME_FORMAT), XSD_TIME)
+            }
+            Node::LabeledBlankNode(bnode) => {
+                write!(f, "{BLANK_NODE_LABEL}{bnode}")
             }
             Node::List(list) => {
                 panic!("encountered node list where we shouldn't {list:?}");
@@ -1216,6 +1250,15 @@ mod test {
 
     #[test]
     #[serial]
+    fn test_labeled_bnode_err() {
+        FAKE_UUID_GEN.store(0, std::sync::atomic::Ordering::SeqCst);
+        let mut buf_c = String::new();
+        let turtle_c =
+            TurtleDoc::from_file("tests/labeled_bnode_err.ttl", None, &mut buf_c).unwrap();
+        assert_eq!(turtle_c.len(), 40)
+    }
+    #[test]
+    #[serial]
     fn other_test() {
         FAKE_UUID_GEN.store(0, std::sync::atomic::Ordering::SeqCst);
         let mut buf_c = String::new();
@@ -1228,9 +1271,10 @@ mod test {
         println!("{}", turtle_expected.difference(&turtle_c).unwrap());
         assert_eq!(turtle_c.difference(&turtle_expected).unwrap().len(), 0);
     }
+
     #[test]
     #[serial]
-    fn complex_test() {
+    fn complex_test_with_bnode() {
         FAKE_UUID_GEN.store(0, std::sync::atomic::Ordering::SeqCst);
         let mut buf_c = String::new();
         let mut buf_e = String::new();
