@@ -43,11 +43,17 @@ fn get_uuid() -> String {
     )
 }
 
+#[derive(PartialEq, Debug)]
+pub struct TurtleDocError {
+    pub message: String,
+}
+
 struct Context<'a> {
     base: Option<&'a str>,
     well_known_prefix: Option<String>,
     prefixes: BTreeMap<&'a str, &'a str>,
 }
+
 #[derive(Serialize, PartialEq, Deserialize, Clone, Debug)]
 pub struct RdfJsonNode {
     #[serde(rename = "type")]
@@ -58,6 +64,7 @@ pub struct RdfJsonNode {
     pub lang: Option<String>,
     pub value: String,
 }
+
 #[derive(Serialize, PartialEq, Deserialize, Clone, Debug)]
 #[serde(untagged)]
 pub enum RdfJsonNodeResult {
@@ -108,6 +115,7 @@ pub struct TurtleDoc<'a> {
     prefixes: BTreeMap<Cow<'a, str>, Cow<'a, str>>,
     statements: Vec<Statement<'a>>,
 }
+
 impl<'a> Statement<'a> {
     pub fn from_rdf_json_triples(
         triples: &'a [RdfJsonTriple],
@@ -139,104 +147,6 @@ impl RdfJsonTriple {
         })
     }
 }
-
-impl<'a> PartialEq for Node<'a> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Node::Iri(n1), Node::Iri(n2)) => n1.eq(n2),
-            (Node::Literal(n1), Node::Literal(n2)) => n1 == n2,
-            (
-                l @ Node::Literal(_)
-                | l @ Node::Iri(_)
-                | l @ Node::List(_)
-                | l @ Node::LabeledBlankNode(_),
-                Node::Ref(n2),
-            ) => n2.as_ref().eq(l),
-
-            (
-                Node::Ref(n1),
-                r @ Node::Iri(_)
-                | r @ Node::Literal(_)
-                | r @ Node::List(_)
-                | r @ Node::LabeledBlankNode(_),
-            ) => n1.as_ref().eq(r),
-            (Node::Ref(n1), Node::Ref(n2)) => n1 == n2,
-            (Node::List(n1), Node::List(n2)) => n1 == n2,
-            (Node::LabeledBlankNode(n1), Node::LabeledBlankNode(n2)) => n1 == n2,
-            (Node::Iri(_), Node::Literal(_))
-            | (Node::Iri(_), Node::LabeledBlankNode(_))
-            | (Node::Iri(_), Node::List(_))
-            | (Node::LabeledBlankNode(_), Node::Iri(_))
-            | (Node::LabeledBlankNode(_), Node::Literal(_))
-            | (Node::LabeledBlankNode(_), Node::List(_))
-            | (Node::Literal(_), Node::Iri(_))
-            | (Node::Literal(_), Node::LabeledBlankNode(_))
-            | (Node::Literal(_), Node::List(_))
-            | (Node::List(_), Node::Iri(_))
-            | (Node::List(_), Node::LabeledBlankNode(_))
-            | (Node::List(_), Node::Literal(_)) => false,
-        }
-    }
-}
-
-impl<'a> TryFrom<Vec<Statement<'a>>> for TurtleDoc<'a> {
-    type Error = TurtleDocError;
-    fn try_from(statements: Vec<Statement<'a>>) -> Result<Self, Self::Error> {
-        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()), None)?;
-        doc.statements.extend(statements);
-        Ok(doc)
-    }
-}
-
-impl<'a> TryFrom<&'a Vec<RdfJsonTriple>> for TurtleDoc<'a> {
-    type Error = TurtleDocError;
-    fn try_from(triples: &'a Vec<RdfJsonTriple>) -> Result<Self, Self::Error> {
-        let mut doc = TurtleDoc::new(Vec::with_capacity(triples.len()), None)?;
-        for triple in triples {
-            let s: Statement = triple.try_into()?;
-            doc.statements.push(s);
-        }
-        Ok(doc)
-    }
-}
-
-impl<'a> TryFrom<&'a Vec<Statement<'a>>> for TurtleDoc<'a> {
-    type Error = TurtleDocError;
-    fn try_from(statements: &Vec<Statement<'a>>) -> Result<Self, Self::Error> {
-        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()), None)?;
-        let statements: Vec<Statement> = statements.to_vec();
-        doc.statements.extend(statements);
-        Ok(doc)
-    }
-}
-impl<'a> TryFrom<Vec<&'a Statement<'a>>> for TurtleDoc<'a> {
-    type Error = TurtleDocError;
-    fn try_from(statements: Vec<&'a Statement<'a>>) -> Result<Self, Self::Error> {
-        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()), None)?;
-        let statements: Vec<Statement> = statements.into_iter().cloned().collect();
-        doc.statements.extend(statements);
-        Ok(doc)
-    }
-}
-impl<'a> TryFrom<(&'a str, Option<String>)> for TurtleDoc<'a> {
-    type Error = TurtleDocError;
-
-    fn try_from((s, prefix): (&'a str, Option<String>)) -> Result<Self, Self::Error> {
-        let (res, statements) = statements(s).map_err(|err| TurtleDocError {
-            message: format!("parsing error: {err}"),
-        })?;
-        let (res, _) = comments(res).map_err(|err| TurtleDocError {
-            message: format!("parsing error: {err}"),
-        })?;
-        if !res.trim().is_empty() {
-            return Err(TurtleDocError {
-                message: format!("could not parse the doc completely: rest => {res}"),
-            });
-        }
-        Self::new(statements, prefix)
-    }
-}
-
 impl<'a> TurtleDoc<'a> {
     pub fn from_file(
         path: impl Into<PathBuf>,
@@ -766,34 +676,149 @@ impl<'a> TurtleDoc<'a> {
         }
     }
 }
-impl<'a> IntoIterator for TurtleDoc<'a> {
-    type Item = Statement<'a>;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.statements.into_iter()
+impl<'a> TryFrom<Vec<Statement<'a>>> for TurtleDoc<'a> {
+    type Error = TurtleDocError;
+    fn try_from(statements: Vec<Statement<'a>>) -> Result<Self, Self::Error> {
+        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()), None)?;
+        doc.statements.extend(statements);
+        Ok(doc)
     }
 }
-impl Add for TurtleDoc<'_> {
-    type Output = Self;
+impl<'a> TryFrom<&'a Vec<RdfJsonTriple>> for TurtleDoc<'a> {
+    type Error = TurtleDocError;
+    fn try_from(triples: &'a Vec<RdfJsonTriple>) -> Result<Self, Self::Error> {
+        let mut doc = TurtleDoc::new(Vec::with_capacity(triples.len()), None)?;
+        for triple in triples {
+            let s: Statement = triple.try_into()?;
+            doc.statements.push(s);
+        }
+        Ok(doc)
+    }
+}
+impl<'a> TryFrom<&'a Vec<Statement<'a>>> for TurtleDoc<'a> {
+    type Error = TurtleDocError;
+    fn try_from(statements: &Vec<Statement<'a>>) -> Result<Self, Self::Error> {
+        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()), None)?;
+        let statements: Vec<Statement> = statements.to_vec();
+        doc.statements.extend(statements);
+        Ok(doc)
+    }
+}
+impl<'a> TryFrom<Vec<&'a Statement<'a>>> for TurtleDoc<'a> {
+    type Error = TurtleDocError;
+    fn try_from(statements: Vec<&'a Statement<'a>>) -> Result<Self, Self::Error> {
+        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()), None)?;
+        let statements: Vec<Statement> = statements.into_iter().cloned().collect();
+        doc.statements.extend(statements);
+        Ok(doc)
+    }
+}
+impl<'a> TryFrom<(&'a str, Option<String>)> for TurtleDoc<'a> {
+    type Error = TurtleDocError;
 
-    fn add(self, rhs: Self) -> Self::Output {
-        let mut statements: Vec<Statement> = Vec::with_capacity(self.len() + rhs.len());
+    fn try_from((s, prefix): (&'a str, Option<String>)) -> Result<Self, Self::Error> {
+        let (res, statements) = statements(s).map_err(|err| TurtleDocError {
+            message: format!("parsing error: {err}"),
+        })?;
+        let (res, _) = comments(res).map_err(|err| TurtleDocError {
+            message: format!("parsing error: {err}"),
+        })?;
+        if !res.trim().is_empty() {
+            return Err(TurtleDocError {
+                message: format!("could not parse the doc completely: rest => {res}"),
+            });
+        }
+        Self::new(statements, prefix)
+    }
+}
+impl<'a> TryFrom<&'a RdfJsonTriple> for Statement<'a> {
+    type Error = TurtleDocError;
 
-        for stmt in self.statements.into_iter().chain(rhs.statements) {
-            if !statements.contains(&stmt) {
-                statements.push(stmt);
+    fn try_from(value: &'a RdfJsonTriple) -> Result<Self, Self::Error> {
+        fn rjs_to_node(n: &RdfJsonNode) -> Result<Node<'_>, TurtleDocError> {
+            match n.typ.as_str() {
+                "uri" => return Ok(Node::Iri(Cow::Borrowed(&n.value))),
+                "bnode" => return Ok(Node::LabeledBlankNode(n.value.to_string())),
+                "literal" => match &n.datatype {
+                    Some(dt) => match dt.as_str() {
+                        XSD_DOUBLE => n
+                            .value
+                            .parse::<f64>()
+                            .map(|f| Node::Literal(Literal::Double(f)))
+                            .map_err(|e| TurtleDocError {
+                                message: e.to_string(),
+                            }),
+                        XSD_DECIMAL => n
+                            .value
+                            .parse::<f32>()
+                            .map(|f| Node::Literal(Literal::Decimal(f)))
+                            .map_err(|e| TurtleDocError {
+                                message: e.to_string(),
+                            }),
+                        XSD_INTEGER => n
+                            .value
+                            .parse::<i64>()
+                            .map(|f| Node::Literal(Literal::Integer(f)))
+                            .map_err(|e| TurtleDocError {
+                                message: e.to_string(),
+                            }),
+                        XSD_BOOLEAN => n
+                            .value
+                            .parse::<bool>()
+                            .map(|f| Node::Literal(Literal::Boolean(f)))
+                            .map_err(|e| TurtleDocError {
+                                message: e.to_string(),
+                            }),
+                        _ => {
+                            return Ok(Node::Literal(Literal::Quoted {
+                                datatype: Some(Box::new(Node::Iri(Cow::Borrowed(dt)))),
+                                value: Cow::Borrowed(&n.value),
+                                lang: if let Some(lang) = &n.lang {
+                                    Some(lang.as_str())
+                                } else {
+                                    None
+                                },
+                            }))
+                        }
+                    },
+                    None => {
+                        return Ok(Node::Literal(Literal::Quoted {
+                            datatype: None,
+                            value: Cow::Borrowed(&n.value),
+                            lang: if let Some(lang) = &n.lang {
+                                Some(lang.as_str())
+                            } else {
+                                None
+                            },
+                        }))
+                    }
+                },
+                t => Err(TurtleDocError {
+                    message: format!("type {t} unknown"),
+                }),
             }
         }
 
-        let prefixes: BTreeMap<Cow<'_, str>, Cow<'_, str>> =
-            self.prefixes.into_iter().chain(rhs.prefixes).collect();
-        TurtleDoc {
-            well_known_prefix: self.well_known_prefix,
-            base: self.base,
-            statements: statements.into_iter().collect(),
-            prefixes,
+        fn rnr_to_node(n: &RdfJsonNodeResult) -> Result<Node<'_>, TurtleDocError> {
+            match n {
+                RdfJsonNodeResult::SingleNode(node) => return rjs_to_node(node),
+                RdfJsonNodeResult::ListNodes(rnr_nodes) => {
+                    let mut nodes = vec![];
+                    for node in rnr_nodes.iter() {
+                        nodes.push(rnr_to_node(node)?);
+                    }
+                    return Ok(Node::List(nodes));
+                }
+            };
         }
+
+        let stmt = Statement {
+            subject: rnr_to_node(&value.subject)?,
+            predicate: rnr_to_node(&value.predicate)?,
+            object: rnr_to_node(&value.object)?,
+        };
+        Ok(stmt)
     }
 }
 
@@ -921,6 +946,78 @@ impl From<&Node<'_>> for RdfJsonNodeResult {
         }
     }
 }
+
+impl<'a> IntoIterator for TurtleDoc<'a> {
+    type Item = Statement<'a>;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.statements.into_iter()
+    }
+}
+
+impl<'a> PartialEq for Node<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Node::Iri(n1), Node::Iri(n2)) => n1.eq(n2),
+            (Node::Literal(n1), Node::Literal(n2)) => n1 == n2,
+            (
+                l @ Node::Literal(_)
+                | l @ Node::Iri(_)
+                | l @ Node::List(_)
+                | l @ Node::LabeledBlankNode(_),
+                Node::Ref(n2),
+            ) => n2.as_ref().eq(l),
+
+            (
+                Node::Ref(n1),
+                r @ Node::Iri(_)
+                | r @ Node::Literal(_)
+                | r @ Node::List(_)
+                | r @ Node::LabeledBlankNode(_),
+            ) => n1.as_ref().eq(r),
+            (Node::Ref(n1), Node::Ref(n2)) => n1 == n2,
+            (Node::List(n1), Node::List(n2)) => n1 == n2,
+            (Node::LabeledBlankNode(n1), Node::LabeledBlankNode(n2)) => n1 == n2,
+            (Node::Iri(_), Node::Literal(_))
+            | (Node::Iri(_), Node::LabeledBlankNode(_))
+            | (Node::Iri(_), Node::List(_))
+            | (Node::LabeledBlankNode(_), Node::Iri(_))
+            | (Node::LabeledBlankNode(_), Node::Literal(_))
+            | (Node::LabeledBlankNode(_), Node::List(_))
+            | (Node::Literal(_), Node::Iri(_))
+            | (Node::Literal(_), Node::LabeledBlankNode(_))
+            | (Node::Literal(_), Node::List(_))
+            | (Node::List(_), Node::Iri(_))
+            | (Node::List(_), Node::LabeledBlankNode(_))
+            | (Node::List(_), Node::Literal(_)) => false,
+        }
+    }
+}
+
+impl Add for TurtleDoc<'_> {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut statements: Vec<Statement> = Vec::with_capacity(self.len() + rhs.len());
+
+        for stmt in self.statements.into_iter().chain(rhs.statements) {
+            if !statements.contains(&stmt) {
+                statements.push(stmt);
+            }
+        }
+
+        let prefixes: BTreeMap<Cow<'_, str>, Cow<'_, str>> =
+            self.prefixes.into_iter().chain(rhs.prefixes).collect();
+        TurtleDoc {
+            well_known_prefix: self.well_known_prefix,
+            base: self.base,
+            statements: statements.into_iter().collect(),
+            prefixes,
+        }
+    }
+}
+
 impl Display for Node<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -973,7 +1070,6 @@ impl Display for Node<'_> {
         }
     }
 }
-
 impl Display for Statement<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let Statement {
@@ -984,7 +1080,6 @@ impl Display for Statement<'_> {
         write!(f, r#"{subject} {predicate} {object}."#)
     }
 }
-
 impl Display for TurtleDoc<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -998,107 +1093,11 @@ impl Display for TurtleDoc<'_> {
         )
     }
 }
-
-#[derive(PartialEq, Debug)]
-pub struct TurtleDocError {
-    pub message: String,
-}
 impl Display for TurtleDocError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "error: {}", self.message)
     }
 }
-
-impl<'a> TryFrom<&'a RdfJsonTriple> for Statement<'a> {
-    type Error = TurtleDocError;
-
-    fn try_from(value: &'a RdfJsonTriple) -> Result<Self, Self::Error> {
-        fn rjs_to_node(n: &RdfJsonNode) -> Result<Node<'_>, TurtleDocError> {
-            match n.typ.as_str() {
-                "uri" => return Ok(Node::Iri(Cow::Borrowed(&n.value))),
-                "bnode" => return Ok(Node::LabeledBlankNode(n.value.to_string())),
-                "literal" => match &n.datatype {
-                    Some(dt) => match dt.as_str() {
-                        XSD_DOUBLE => n
-                            .value
-                            .parse::<f64>()
-                            .map(|f| Node::Literal(Literal::Double(f)))
-                            .map_err(|e| TurtleDocError {
-                                message: e.to_string(),
-                            }),
-                        XSD_DECIMAL => n
-                            .value
-                            .parse::<f32>()
-                            .map(|f| Node::Literal(Literal::Decimal(f)))
-                            .map_err(|e| TurtleDocError {
-                                message: e.to_string(),
-                            }),
-                        XSD_INTEGER => n
-                            .value
-                            .parse::<i64>()
-                            .map(|f| Node::Literal(Literal::Integer(f)))
-                            .map_err(|e| TurtleDocError {
-                                message: e.to_string(),
-                            }),
-                        XSD_BOOLEAN => n
-                            .value
-                            .parse::<bool>()
-                            .map(|f| Node::Literal(Literal::Boolean(f)))
-                            .map_err(|e| TurtleDocError {
-                                message: e.to_string(),
-                            }),
-                        _ => {
-                            return Ok(Node::Literal(Literal::Quoted {
-                                datatype: Some(Box::new(Node::Iri(Cow::Borrowed(dt)))),
-                                value: Cow::Borrowed(&n.value),
-                                lang: if let Some(lang) = &n.lang {
-                                    Some(lang.as_str())
-                                } else {
-                                    None
-                                },
-                            }))
-                        }
-                    },
-                    None => {
-                        return Ok(Node::Literal(Literal::Quoted {
-                            datatype: None,
-                            value: Cow::Borrowed(&n.value),
-                            lang: if let Some(lang) = &n.lang {
-                                Some(lang.as_str())
-                            } else {
-                                None
-                            },
-                        }))
-                    }
-                },
-                t => Err(TurtleDocError {
-                    message: format!("type {t} unknown"),
-                }),
-            }
-        }
-
-        fn rnr_to_node(n: &RdfJsonNodeResult) -> Result<Node<'_>, TurtleDocError> {
-            match n {
-                RdfJsonNodeResult::SingleNode(node) => return rjs_to_node(node),
-                RdfJsonNodeResult::ListNodes(rnr_nodes) => {
-                    let mut nodes = vec![];
-                    for node in rnr_nodes.iter() {
-                        nodes.push(rnr_to_node(node)?);
-                    }
-                    return Ok(Node::List(nodes));
-                }
-            };
-        }
-
-        let stmt = Statement {
-            subject: rnr_to_node(&value.subject)?,
-            predicate: rnr_to_node(&value.predicate)?,
-            object: rnr_to_node(&value.object)?,
-        };
-        Ok(stmt)
-    }
-}
-
 #[cfg(test)]
 mod test {
     use crate::{
