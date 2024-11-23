@@ -259,10 +259,12 @@ pub(crate) mod literal {
     }
 }
 pub(crate) mod triple {
+
     use crate::grammar::BLANK_NODE_LABEL;
     use crate::prelude::*;
     use crate::shared::NS_TYPE;
     use crate::triple_common_parser::{comments, paren_close, paren_open, BlankNode, Iri};
+
     use std::collections::VecDeque;
 
     pub(crate) fn object_list<'a, F1, F2, T>(
@@ -353,28 +355,38 @@ pub(crate) mod triple {
             ),
         )
     }
+    // https://www.w3.org/TR/turtle/ 2.6 RDF Blank Nodes
     pub(crate) fn labeled_bnode(s: &str) -> ParserResult<BlankNode> {
-        let parse_label = delimited(
-            tag(BLANK_NODE_LABEL),
-            take_while(|s: char| {
-                !s.is_whitespace()
-                    && s != '.'
-                    && s != ';'
-                    && s != '<'
-                    && s != '('
-                    && s != '['
-                    && s != '"'
-            }),
-            space0,
-        );
-
-        map_res(preceded(multispace0, parse_label), |label: &str| {
-            if label.starts_with('.') || label.ends_with('.') || label.starts_with('-') {
-                let err: Error<&str> = make_error(label, ErrorKind::IsNot);
-                return Err(nom::Err::Error(err));
+        fn allowed_but_not_as_first(c: char) -> bool {
+            matches!(c,'.' | '-' | '·' | '\u{0300}'..='\u{036F}' | '\u{203F}'..='\u{2040}')
+        }
+        let (s, _) = preceded(multispace0, tag(BLANK_NODE_LABEL))(s)?;
+        let mut idx_bnode = 0;
+        for c in s.chars() {
+            if c.is_alphanum() || c == '_' || allowed_but_not_as_first(c) {
+                idx_bnode += c.len_utf8();
+            } else {
+                break;
             }
-            Ok(BlankNode::Labeled(label))
-        })(s)
+        }
+        let mut bnode: &str = &s[0..idx_bnode];
+        if bnode.ends_with('.') {
+            idx_bnode -= '.'.len_utf8();
+            bnode = &s[0..idx_bnode];
+        }
+        if bnode.is_empty()
+            || bnode
+                .chars()
+                .last()
+                .filter(|c| allowed_but_not_as_first(*c))
+                .is_some()
+            || bnode.chars().take(1).any(allowed_but_not_as_first)
+        {
+            let err: Error<&str> = make_error(s, ErrorKind::IsNot);
+            return Err(nom::Err::Error(err));
+        }
+        let rest = &s[idx_bnode..];
+        Ok((rest, BlankNode::Labeled(bnode)))
     }
 }
 pub(crate) fn comments(s: &str) -> ParserResult<Vec<&str>> {

@@ -449,6 +449,123 @@ mod test {
     }
 
     #[test]
+    fn labeled_bnode_using_proper_rules_test1() {
+        let s = "_:b.node :a :b";
+        let (rest, res) = triples(s).unwrap();
+        assert!(rest.trim().is_empty());
+        assert_eq!(
+            res,
+            TurtleValue::Statement {
+                subject: Box::new(TurtleValue::BNode(BlankNode::Labeled("b.node",),)),
+                predicate_objects: [TurtleValue::PredicateObject {
+                    predicate: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                        prefix: "",
+                        local_name: "a",
+                    },)),
+                    object: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                        prefix: "",
+                        local_name: "b",
+                    },)),
+                },]
+                .into(),
+            }
+        );
+    }
+    #[test]
+    fn labeled_bnode_using_proper_rules_test2() {
+        let s = "_:b-node :a :b";
+        let (rest, res) = triples(s).unwrap();
+        assert!(rest.trim().is_empty());
+        assert_eq!(
+            res,
+            TurtleValue::Statement {
+                subject: Box::new(TurtleValue::BNode(BlankNode::Labeled("b-node",),)),
+                predicate_objects: [TurtleValue::PredicateObject {
+                    predicate: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                        prefix: "",
+                        local_name: "a",
+                    },)),
+                    object: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                        prefix: "",
+                        local_name: "b",
+                    },)),
+                },]
+                .into(),
+            }
+        );
+    }
+    #[test]
+    fn labeled_bnode_using_proper_rules_test3() {
+        let s = "_:b·node :a :b";
+        let (rest, res) = triples(s).unwrap();
+        assert!(rest.trim().is_empty());
+        assert_eq!(
+            res,
+            TurtleValue::Statement {
+                subject: Box::new(TurtleValue::BNode(BlankNode::Labeled("b·node",),)),
+                predicate_objects: [TurtleValue::PredicateObject {
+                    predicate: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                        prefix: "",
+                        local_name: "a",
+                    },)),
+                    object: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                        prefix: "",
+                        local_name: "b",
+                    },)),
+                },]
+                .into(),
+            }
+        );
+    }
+
+    #[test]
+    fn labeled_bnode_using_proper_rules_test4() {
+        let s = "_:b-jöhn :a :b";
+        let (rest, res) = triples(s).unwrap();
+        assert!(rest.trim().is_empty());
+        assert_eq!(
+            res,
+            TurtleValue::Statement {
+                subject: Box::new(TurtleValue::BNode(BlankNode::Labeled("b-jöhn",),)),
+                predicate_objects: [TurtleValue::PredicateObject {
+                    predicate: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                        prefix: "",
+                        local_name: "a",
+                    },)),
+                    object: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                        prefix: "",
+                        local_name: "b",
+                    },)),
+                },]
+                .into(),
+            }
+        );
+    }
+
+    #[test]
+    fn labeled_bnode_using_proper_rules_test5() {
+        let s = "_:b_undertie‿node :a :b";
+        let (rest, res) = triples(s).unwrap();
+        assert!(rest.trim().is_empty());
+        assert_eq!(
+            res,
+            TurtleValue::Statement {
+                subject: Box::new(TurtleValue::BNode(BlankNode::Labeled("b_undertie‿node",),)),
+                predicate_objects: [TurtleValue::PredicateObject {
+                    predicate: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                        prefix: "",
+                        local_name: "a",
+                    },)),
+                    object: Box::new(TurtleValue::Iri(Iri::Prefixed {
+                        prefix: "",
+                        local_name: "b",
+                    },)),
+                },]
+                .into(),
+            }
+        );
+    }
+    #[test]
     fn collection_test() {
         let s = r#":a :b ( "apple" "banana" ) ."#;
         let (rest, res) = triples(s).unwrap();
