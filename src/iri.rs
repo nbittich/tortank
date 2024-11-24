@@ -31,7 +31,7 @@ fn parse_ip_v6(s: &str) -> ParserResult<Vec<u16>> {
     fn segment(s: &str) -> ParserResult<Segment> {
         alt((
             map(tag("::"), |_| Segment::Compressed),
-            preceded(tag(":"), map(parse_ip_v4, Segment::IpV4)),
+            preceded(opt(tag(":")), map(parse_ip_v4, Segment::IpV4)),
             preceded(opt(tag(":")), map(hextet, Segment::Hextet)),
         ))(s)
     }
@@ -53,6 +53,10 @@ fn parse_ip_v6(s: &str) -> ParserResult<Vec<u16>> {
             Segment::Hextet(v) => ipv6.push(v),
             Segment::Compressed => {
                 compression_pos = Some(idx);
+            }
+            Segment::IpV4(_) if idx == 0 => {
+                let err = VerboseError::from_error_kind(s, ErrorKind::IsNot);
+                return Err(nom::Err::Error(err));
             }
             Segment::IpV4(l) => {
                 ipv6.push((l[0] as u16) << 8 | l[1] as u16);
@@ -183,5 +187,7 @@ mod test {
             let result = parse_ip_v6(addr).unwrap();
             assert_eq!(result, ("", expected),);
         }
+
+        assert!(parse_ip_v6("192.168.1.1:0::ffff").is_err());
     }
 }
