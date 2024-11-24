@@ -723,7 +723,7 @@ fn predicate_lists_testx() {
             _:helium <http://example.org/elements/atomicNumber>  "2".
         "#;
     let (_, res) = triples(s).unwrap();
-    dbg!(
+    assert_eq!(
         res,
         TurtleValue::Statement {
             subject: Box::new(TurtleValue::BNode(BlankNode::Labeled("helium",),)),
@@ -746,7 +746,7 @@ fn predicate_lists_testx() {
             <http://en.wikipedia.org/wiki/Helium>  <http://example.org/elements/atomicNumber>  "2".
         "#;
     let (_, res) = triples(s).unwrap();
-    dbg!(
+    assert_eq!(
         res,
         TurtleValue::Statement {
             subject: Box::new(TurtleValue::Iri(Iri::Enclosed(

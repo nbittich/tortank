@@ -91,4 +91,5 @@ fn cmp_input_file(
 }
 mod triple_common_parser_test_misc;
 mod turtle_doc_test;
+mod turtle_doc_test_misc;
 mod turtle_parser_test_misc;
