@@ -73,10 +73,7 @@ fn parse_ip_v4(s: &str) -> ParserResult<Vec<u8>> {
     verify(
         separated_list1(
             tag("."),
-            verify(
-                map_parser(take_while1(|c: char| c.is_numeric()), all_consuming(U8)),
-                |num: &u8| num <= &255,
-            ),
+            map_parser(take_while1(|c: char| c.is_numeric()), all_consuming(U8)),
         ),
         |list: &[u8]| list.len() == 4,
     )(s)
