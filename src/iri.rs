@@ -1,91 +1,86 @@
-#![allow(unused)]
-
-use std::{collections::VecDeque, ops::RangeBounds};
-
-use chrono::ParseResult;
-use nom::{
-    bytes::complete::take_while_m_n,
-    character::complete::one_of,
-    combinator::{success, verify},
-    error::{ParseError, VerboseError},
-    multi::{many1, many_m_n},
-};
-
-use crate::prelude::*;
-
-pub enum Segment {
-    Hextet(u16),
-    Compressed,
-    IpV4(Vec<u8>),
-}
-fn parse_ip_v6(s: &str) -> ParserResult<Vec<u16>> {
-    fn hex_to_u16(input: &str) -> Result<u16, std::num::ParseIntError> {
-        u16::from_str_radix(input, 16)
-    }
-    fn recognize_hexadecimal(input: &str) -> ParserResult<&str> {
-        recognize(take_while_m_n(1, 4, |c: char| c.is_ascii_hexdigit()))(input)
-    }
-    fn hextet(s: &str) -> ParserResult<u16> {
-        map_res(recognize_hexadecimal, hex_to_u16)(s)
+#[allow(unused)]
+mod ip {
+    use nom::{
+        bytes::complete::take_while_m_n,
+        combinator::verify,
+        error::{ParseError, VerboseError},
+        multi::many_m_n,
     };
-    fn segment(s: &str) -> ParserResult<Segment> {
-        alt((
-            map(tag("::"), |_| Segment::Compressed),
-            preceded(opt(tag(":")), map(parse_ip_v4, Segment::IpV4)),
-            preceded(opt(tag(":")), map(hextet, Segment::Hextet)),
-        ))(s)
+
+    use crate::prelude::*;
+    enum Segment {
+        Hextet(u16),
+        Compressed,
+        IpV4(Vec<u8>),
     }
-    let mut ipv6: Vec<u16> = vec![];
-    let (rest, list) = verify(many_m_n(1, 8, segment), |l: &[Segment]| {
-        l.iter()
-            .filter(|seg| matches!(seg, Segment::Compressed))
-            .count()
-            <= 1
-            && l.iter()
-                .filter(|seg| matches!(seg, Segment::IpV4(_)))
+    pub(super) fn parse_ip_v6(s: &str) -> ParserResult<Vec<u16>> {
+        fn hex_to_u16(input: &str) -> Result<u16, std::num::ParseIntError> {
+            u16::from_str_radix(input, 16)
+        }
+        fn recognize_hexadecimal(input: &str) -> ParserResult<&str> {
+            recognize(take_while_m_n(1, 4, |c: char| c.is_ascii_hexdigit()))(input)
+        }
+        fn hextet(s: &str) -> ParserResult<u16> {
+            map_res(recognize_hexadecimal, hex_to_u16)(s)
+        }
+        fn segment(s: &str) -> ParserResult<Segment> {
+            alt((
+                map(tag("::"), |_| Segment::Compressed),
+                preceded(opt(tag(":")), map(parse_ip_v4, Segment::IpV4)),
+                preceded(opt(tag(":")), map(hextet, Segment::Hextet)),
+            ))(s)
+        }
+        let mut ipv6: Vec<u16> = vec![];
+        let (rest, list) = verify(many_m_n(1, 8, segment), |l: &[Segment]| {
+            l.iter()
+                .filter(|seg| matches!(seg, Segment::Compressed))
                 .count()
                 <= 1
-    })(s)?;
+                && l.iter()
+                    .filter(|seg| matches!(seg, Segment::IpV4(_)))
+                    .count()
+                    <= 1
+        })(s)?;
 
-    let mut compression_pos = None;
-    for (idx, segment) in list.into_iter().enumerate() {
-        match segment {
-            Segment::Hextet(v) => ipv6.push(v),
-            Segment::Compressed => {
-                compression_pos = Some(idx);
-            }
-            Segment::IpV4(_) if idx == 0 => {
-                let err = VerboseError::from_error_kind(s, ErrorKind::IsNot);
-                return Err(nom::Err::Error(err));
-            }
-            Segment::IpV4(l) => {
-                ipv6.push((l[0] as u16) << 8 | l[1] as u16);
-                ipv6.push((l[2] as u16) << 8 | l[3] as u16);
+        let mut compression_pos = None;
+        for (idx, segment) in list.into_iter().enumerate() {
+            match segment {
+                Segment::Hextet(v) => ipv6.push(v),
+                Segment::Compressed => {
+                    compression_pos = Some(idx);
+                }
+                Segment::IpV4(_) if idx == 0 => {
+                    let err = VerboseError::from_error_kind(s, ErrorKind::IsNot);
+                    return Err(nom::Err::Error(err));
+                }
+                Segment::IpV4(l) => {
+                    ipv6.push((l[0] as u16) << 8 | l[1] as u16);
+                    ipv6.push((l[2] as u16) << 8 | l[3] as u16);
+                }
             }
         }
-    }
-    if let Some(idx) = compression_pos {
-        let len = ipv6.len();
-        while ipv6.len() < 8 {
-            ipv6.insert(idx, 0x0);
+        if let Some(idx) = compression_pos {
+            while ipv6.len() < 8 {
+                ipv6.insert(idx, 0x0);
+            }
         }
+
+        Ok((rest, ipv6))
     }
-
-    Ok((rest, ipv6))
+    pub(super) fn parse_ip_v4(s: &str) -> ParserResult<Vec<u8>> {
+        verify(
+            separated_list1(
+                tag("."),
+                map_parser(take_while1(|c: char| c.is_numeric()), all_consuming(U8)),
+            ),
+            |list: &[u8]| list.len() == 4,
+        )(s)
+    }
 }
-fn parse_ip_v4(s: &str) -> ParserResult<Vec<u8>> {
-    verify(
-        separated_list1(
-            tag("."),
-            map_parser(take_while1(|c: char| c.is_numeric()), all_consuming(U8)),
-        ),
-        |list: &[u8]| list.len() == 4,
-    )(s)
-}
-
 #[cfg(test)]
+
 mod test {
-    use crate::iri::{parse_ip_v4, parse_ip_v6};
+    use crate::iri::ip::{parse_ip_v4, parse_ip_v6};
 
     #[test]
     fn parse_ip_v4_test() {

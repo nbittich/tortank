@@ -185,6 +185,11 @@ impl<'a> TurtleDoc<'a> {
             .into_iter()
             .map(|(k, v)| (Cow::Owned(k), Cow::Owned(v)))
             .collect();
+        // for (k, prefix) in prefixes {
+        //     if self.prefixes.contains_key(&k) {
+        //         panic("FIXME. https://www.ietf.org/rfc/rfc3987.html");
+        //     }
+        // }
         self.prefixes.extend(prefixes);
     }
     pub fn len(&self) -> usize {
