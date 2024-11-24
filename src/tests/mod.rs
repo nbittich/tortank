@@ -89,4 +89,6 @@ fn cmp_input_file(
         assert_eq!(diff.len(), 0);
     }
 }
+mod triple_common_parser_test_misc;
 mod turtle_doc_test;
+mod turtle_parser_test_misc;

@@ -1,2 +1,2 @@
 pub mod turtle_doc;
-mod turtle_parser;
+pub(crate) mod turtle_parser;
