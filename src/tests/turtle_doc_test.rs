@@ -32,6 +32,7 @@ const INPUT_DIR: &str = "examples/turtle_doc";
 #[test_case("0025", None          , false ; "EQ: test date 20/09/2012")]
 #[test_case("0026", None          , false ; "EQ: test date 2023-08-30T10:31:00.080Z")]
 #[test_case("0027", None          , true  ; "JSON: test simple json result with bnode")]
+// #[test_case("0028", None          , false  ; "The following Turtle document contains examples of all the different ways of writing IRIs in Turtle.")]
 #[serial]
 fn test_turtle_doc(test_name: &str, diff_file: Option<&str>, output_json: bool) {
     reset_fake_uuid_gen();

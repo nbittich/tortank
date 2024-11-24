@@ -80,13 +80,13 @@ fn cmp_input_file(
                     .replace(" ", "<SPACE>"),
             );
         }
-        assert_eq!(input.len(), output.len());
         if !diff.is_empty() {
             println!("========== Differences ==========");
             println!("{diff}");
             println!("========== Differences ==========");
         }
         assert_eq!(diff.len(), 0);
+        assert_eq!(input.len(), output.len());
     }
 }
 mod triple_common_parser_test_misc;

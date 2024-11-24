@@ -1,8 +1,8 @@
+pub mod iri;
 mod shared;
 mod string_parser;
 mod triple_common_parser;
 pub mod turtle;
-
 pub mod prelude {
     use nom::error::VerboseError;
     pub use nom::{
@@ -14,7 +14,7 @@ pub mod prelude {
         character::{
             complete::{
                 alphanumeric1, char, i64 as I64, line_ending, multispace0, multispace1, space0,
-                space1, u32 as U32,
+                space1, u16 as U16, u32 as U32, u8 as U8,
             },
             is_alphanumeric, is_space,
         },
