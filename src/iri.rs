@@ -2,7 +2,7 @@
 mod ip {
     use nom::{
         bytes::complete::take_while_m_n,
-        combinator::verify,
+        combinator::{success, verify},
         error::{ParseError, VerboseError},
         multi::many_m_n,
     };
@@ -30,7 +30,7 @@ mod ip {
                 preceded(opt(tag(":")), map(hextet, Segment::Hextet)),
             ))(s)
         }
-        let mut ipv6: Vec<u16> = vec![];
+        let mut ipv6: Vec<u16> = Vec::with_capacity(8);
         let (rest, list) = verify(many_m_n(1, 8, segment), |l: &[Segment]| {
             l.iter()
                 .filter(|seg| matches!(seg, Segment::Compressed))
@@ -50,7 +50,7 @@ mod ip {
                     compression_pos = Some(idx);
                 }
                 Segment::IpV4(_) if idx == 0 => {
-                    let err = VerboseError::from_error_kind(s, ErrorKind::IsNot);
+                    let err = VerboseError::from_error_kind(s, ErrorKind::Verify);
                     return Err(nom::Err::Error(err));
                 }
                 Segment::IpV4(l) => {
@@ -64,6 +64,7 @@ mod ip {
                 ipv6.insert(idx, 0x0);
             }
         }
+        let (_, ipv6) = verify(success(ipv6), |l: &[u16]| l.len() == 8)("")?;
 
         Ok((rest, ipv6))
     }
