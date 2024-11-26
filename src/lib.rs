@@ -19,7 +19,7 @@ pub mod prelude {
             is_alphanumeric, is_space,
         },
         combinator::{
-            all_consuming, cut, eof, map, map_parser, map_res, opt, peek, recognize, value,
+            all_consuming, cut, eof, map, map_parser, map_res, opt, peek, recognize, value, verify,
         },
         error::{make_error, Error, ErrorKind},
         multi::{many0, separated_list0, separated_list1},

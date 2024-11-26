@@ -78,11 +78,89 @@ mod ip {
         )(s)
     }
 }
-#[cfg(test)]
 
+struct IRI {
+    scheme: Option<String>,
+    i_hier_part: Option<IHierPart>,
+}
+
+struct IHierPart {
+    authority: Option<Authority>,
+}
+
+struct Authority {
+    user_info: Option<String>,
+    host: Option<Host>,
+    port: Option<String>,
+}
+
+enum Host {
+    IPV4(Vec<u8>),
+    IPV6(Vec<u8>),
+    RegName(String),
+}
+
+mod parser {
+    use crate::prelude::*;
+    fn parse_scheme(s: &str) -> ParserResult<&str> {
+        verify(
+            terminated(
+                take_while1(|c: char| c.is_alphanumeric() || c == '.' || c == '-' || c == '+'),
+                tag(":"),
+            ),
+            |scheme: &str| scheme.starts_with(|c: char| c.is_alphabetic()),
+        )(s)
+    }
+    fn parse_userinfo(s: &str) -> ParserResult<&str> {
+        terminated(
+            terminated(
+                take_while1(|c| c != ':'),
+                opt(preceded(tag(":"), take_while1(|c| c != '@'))), // skip the password
+            ),
+            tag("@"),
+        )(s)
+    }
+    fn parse_i_unreserved(s: &str) -> ParserResult<&str> {
+        fn is_ucs_char(c: char) -> bool {
+            c >= '\u{A0}' && c <= '\u{10FFFF}'
+        }
+        take_while1(|c: char| {
+            c.is_alphanum() || c == '-' || c == '.' || c == '_' || c == '~' || is_ucs_char(c)
+        })(s)
+    }
+    fn parse_sub_delims(s: &str) -> ParserResult<&str> {
+        take_while1(|c| {
+            c == '!'
+                || c == '$'
+                || c == '&'
+                || c == '\''
+                || c == '('
+                || c == ')'
+                || c == '*'
+                || c == '+'
+                || c == ','
+                || c == ';'
+                || c == '='
+        })(s)
+    }
+    fn parse_pct_encoded(s: &str) -> ParserResult<&str> {
+        preceded(
+            tag("%"),
+            verify(take(2usize), |hex: &str| {
+                hex.chars().all(|c| c.is_ascii_hexdigit())
+            }),
+        )(s)
+    }
+}
+#[cfg(test)]
 mod test {
+
     use crate::iri::ip::{parse_ip_v4, parse_ip_v6};
 
+    #[test]
+    fn test_hex_st_to_char() {
+        println!("{}", u8::from_str_radix("3A", 16).unwrap() as char);
+    }
     #[test]
     fn parse_ip_v4_test() {
         assert_eq!(
