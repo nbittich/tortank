@@ -100,7 +100,14 @@ enum Host {
     RegName(String),
 }
 
+#[allow(unused)]
 mod parser {
+    use nom::{
+        character::complete::anychar,
+        error::{ParseError, VerboseError},
+        multi::{fold_many1, many1},
+    };
+
     use crate::prelude::*;
     fn parse_scheme(s: &str) -> ParserResult<&str> {
         verify(
@@ -111,36 +118,73 @@ mod parser {
             |scheme: &str| scheme.starts_with(|c: char| c.is_alphabetic()),
         )(s)
     }
-    fn parse_userinfo(s: &str) -> ParserResult<&str> {
-        terminated(
-            terminated(
-                take_while1(|c| c != ':'),
-                opt(preceded(tag(":"), take_while1(|c| c != '@'))), // skip the password
-            ),
-            tag("@"),
+    fn parse_userinfo(s: &str) -> ParserResult<String> {
+        fold_many1(
+            alt((
+                parse_pct_encoded,
+                parse_i_unreserved,
+                parse_sub_delims,
+                tag(":"),
+            )),
+            String::new,
+            |mut acc: String, item| {
+                acc.push_str(item);
+                acc
+            },
+        )(s)
+    }
+    fn parse_i_reg_name(s: &str) -> ParserResult<String> {
+        fold_many1(
+            alt((parse_pct_encoded, parse_i_unreserved, parse_sub_delims)),
+            String::new,
+            |mut acc: String, item| {
+                acc.push_str(item);
+                acc
+            },
         )(s)
     }
     fn parse_i_unreserved(s: &str) -> ParserResult<&str> {
-        fn is_ucs_char(c: char) -> bool {
-            c >= '\u{A0}' && c <= '\u{10FFFF}'
+        fn is_ucs_char(c: &char) -> bool {
+            matches!(c,
+                '\u{00A0}'..='\u{D7FF}' |
+                '\u{F900}'..='\u{FDCF}' |
+                '\u{FDF0}'..='\u{FFEF}' |
+                '\u{10000}'..='\u{1FFFD}' |
+                '\u{20000}'..='\u{2FFFD}' |
+                '\u{30000}'..='\u{3FFFD}' |
+                '\u{40000}'..='\u{4FFFD}' |
+                '\u{50000}'..='\u{5FFFD}' |
+                '\u{60000}'..='\u{6FFFD}' |
+                '\u{70000}'..='\u{7FFFD}' |
+                '\u{80000}'..='\u{8FFFD}' |
+                '\u{90000}'..='\u{9FFFD}' |
+                '\u{A0000}'..='\u{AFFFD}' |
+                '\u{B0000}'..='\u{BFFFD}' |
+                '\u{C0000}'..='\u{CFFFD}' |
+                '\u{D0000}'..='\u{DFFFD}' |
+                '\u{E1000}'..='\u{EFFFD}'
+            )
         }
-        take_while1(|c: char| {
-            c.is_alphanum() || c == '-' || c == '.' || c == '_' || c == '~' || is_ucs_char(c)
-        })(s)
+        alt((
+            verify(take(2usize), |hex: &str| {
+                hex_to_char(hex).filter(|x| is_ucs_char(x)).is_some()
+            }),
+            take_while1(|c: char| c.is_alphanum() || c == '-' || c == '.' || c == '_' || c == '~'),
+        ))(s)
     }
     fn parse_sub_delims(s: &str) -> ParserResult<&str> {
-        take_while1(|c| {
-            c == '!'
-                || c == '$'
-                || c == '&'
-                || c == '\''
-                || c == '('
-                || c == ')'
-                || c == '*'
-                || c == '+'
-                || c == ','
-                || c == ';'
-                || c == '='
+        verify(take(1usize), |c: &str| {
+            c == "!"
+                || c == "$"
+                || c == "&"
+                || c == "'"
+                || c == "("
+                || c == ")"
+                || c == "*"
+                || c == "+"
+                || c == ","
+                || c == ";"
+                || c == "="
         })(s)
     }
     fn parse_pct_encoded(s: &str) -> ParserResult<&str> {
@@ -151,7 +195,13 @@ mod parser {
             }),
         )(s)
     }
+    fn hex_to_char(hex: &str) -> Option<char> {
+        u32::from_str_radix(hex, 16)
+            .ok()
+            .and_then(|u| char::from_u32(u))
+    }
 }
+
 #[cfg(test)]
 mod test {
 
