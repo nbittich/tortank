@@ -90,31 +90,94 @@ struct IHierPart {
 
 struct Authority {
     user_info: Option<String>,
-    host: Option<Host>,
+    host: Host,
     port: Option<String>,
 }
 
 enum Host {
     IPV4(Vec<u8>),
-    IPV6(Vec<u8>),
-    RegName(String),
+    IPV6(Vec<u16>),
+    RegName(Option<String>),
 }
 
 #[allow(unused)]
 mod parser {
     use nom::{
+        bytes::streaming::take_while1,
         character::complete::anychar,
         error::{ParseError, VerboseError},
-        multi::{fold_many1, many1},
+        multi::{fold_many0, fold_many1, many1},
     };
 
     use crate::prelude::*;
+
+    use super::{
+        ip::{self, parse_ip_v4, parse_ip_v6},
+        Authority, Host,
+    };
+
+    fn parse_authority(s: &str) -> ParserResult<Authority> {
+        map(
+            tuple((
+                opt(parse_userinfo),
+                parse_host,
+                opt(preceded(tag(":"), parse_port)),
+            )),
+            |(user_info, host, port)| Authority {
+                user_info,
+                host,
+                port: port.map(String::from),
+            },
+        )(s)
+    }
+
+    fn parse_host(s: &str) -> ParserResult<Host> {
+        alt((
+            map(parse_ip_v4, Host::IPV4),
+            map(parse_ip_v6, Host::IPV6),
+            map(opt(parse_i_reg_name), Host::RegName),
+        ))(s)
+    }
+    fn parse_i_segmentnz(s: &str) -> ParserResult<String> {
+        fold_many0(parse_ip_char, String::new, |mut acc, item| {
+            acc.push_str(item);
+            acc
+        })(s)
+    }
+    fn parse_i_segment0(s: &str) -> ParserResult<String> {
+        fold_many0(parse_ip_char, String::new, |mut acc, item| {
+            acc.push_str(item);
+            acc
+        })(s)
+    }
+
+    fn parse_i_segmentnz_nc(s: &str) -> ParserResult<String> {
+        fold_many1(
+            alt((
+                parse_i_unreserved,
+                parse_pct_encoded,
+                parse_sub_delims,
+                tag("@"),
+            )),
+            String::new,
+            |mut acc, item| {
+                acc.push_str(item);
+                acc
+            },
+        )(s)
+    }
+    fn parse_ip_char(s: &str) -> ParserResult<&str> {
+        alt((
+            parse_i_unreserved,
+            parse_pct_encoded,
+            parse_sub_delims,
+            tag(":"),
+            tag("@"),
+        ))(s)
+    }
     fn parse_scheme(s: &str) -> ParserResult<&str> {
         verify(
-            terminated(
-                take_while1(|c: char| c.is_alphanumeric() || c == '.' || c == '-' || c == '+'),
-                tag(":"),
-            ),
+            take_while1(|c: char| c.is_alphanumeric() || c == '.' || c == '-' || c == '+'),
             |scheme: &str| scheme.starts_with(|c: char| c.is_alphabetic()),
         )(s)
     }
@@ -132,6 +195,9 @@ mod parser {
                 acc
             },
         )(s)
+    }
+    fn parse_port(s: &str) -> ParserResult<&str> {
+        take_while1(|p: char| p.is_numeric())(s)
     }
     fn parse_i_reg_name(s: &str) -> ParserResult<String> {
         fold_many1(

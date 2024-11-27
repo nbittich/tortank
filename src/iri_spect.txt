@@ -4,9 +4,7 @@ FC 3987         Internationalized Resource Identifiers     January 2005
                   / ipath-noscheme
                   / ipath-empty
 
-   iauthority     = [ iuserinfo "@" ] ihost [ ":" port ]
 
-   ihost          = IP-literal / IPv4address / ireg-name
 
 
    ipath          = ipath-abempty   ; begins with "/" or is empty
@@ -21,14 +19,9 @@ FC 3987         Internationalized Resource Identifiers     January 2005
    ipath-rootless = isegment-nz *( "/" isegment )
    ipath-empty    = 0<ipchar>
 
-   isegment       = *ipchar
-   isegment-nz    = 1*ipchar
-   isegment-nz-nc = 1*( iunreserved / pct-encoded / sub-delims
-                        / "@" )
-                  ; non-zero-length segment without any colon ":"
 
-   ipchar         = iunreserved / pct-encoded / sub-delims / ":"
-                  / "@"
+
+
 
    iquery         = *( ipchar / iprivate / "/" / "?" )
 
@@ -53,7 +46,6 @@ RFC 3987         Internationalized Resource Identifiers     January 2005
 
  
 
-   port           = *DIGIT
 
    IP-literal     = "[" ( IPv6address / IPvFuture  ) "]"
 
@@ -75,6 +67,13 @@ RFC 3987         Internationalized Resource Identifiers     January 2005
 
 
 DONE:
+
+   ipchar         = iunreserved / pct-encoded / sub-delims / ":"
+                  / "@"
+   iauthority     = [ iuserinfo "@" ] ihost [ ":" port ]
+
+   port           = *DIGIT
+
    sub-delims     = "!" / "$" / "&" / "'" / "(" / ")"
                   / "*" / "+" / "," / ";" / "="
 
@@ -111,3 +110,9 @@ ls32           = ( h16 ":" h16 ) / IPv4address
 
    ireg-name      = *( iunreserved / pct-encoded / sub-delims )
    iuserinfo      = *( iunreserved / ncoded / sub-delims / ":" )
+      ihost          = IP-literal / IPv4address / ireg-name
+   isegment       = *ipchar
+   isegment-nz    = 1*ipchar
+      isegment-nz-nc = 1*( iunreserved / pct-encoded / sub-delims
+                        / "@" )
+                  ; non-zero-length segment without any colon ":"
