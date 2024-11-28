@@ -323,12 +323,12 @@ mod parser {
         })(s)
     }
     fn parse_pct_encoded(s: &str) -> ParserResult<&str> {
-        preceded(
+        recognize(preceded(
             tag("%"),
             verify(take(2usize), |hex: &str| {
                 hex.chars().all(|c| c.is_ascii_hexdigit())
             }),
-        )(s)
+        ))(s)
     }
     fn hex_to_char(hex: &str) -> Option<char> {
         u32::from_str_radix(hex, 16)
