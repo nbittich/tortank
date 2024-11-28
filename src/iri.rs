@@ -1,3 +1,37 @@
+pub struct IRI {
+    pub scheme: Option<String>,
+    pub i_hier_part: Option<IHierPart>,
+}
+
+pub struct IHierPart {
+    pub authority: Option<Authority>,
+}
+
+pub struct Authority {
+    pub user_info: Option<String>,
+    pub host: Host,
+    pub port: Option<String>,
+}
+
+pub enum Host {
+    IPV4(Vec<u8>),
+    IPV6(Vec<u16>),
+    RegName(Option<String>),
+}
+
+pub enum IPath {
+    AbEmpty(Vec<String>), // starts with / or is empty
+    AbAbsolute {
+        snz: String,           // segment non zero (isegment-nz)
+        segments: Vec<String>, // isegment
+    },
+    Rootless {
+        snz_nc: String, // isegment-nz-nc
+        segments: Vec<String>,
+    },
+    Empty, // ipath-empty
+}
+
 #[allow(unused)]
 mod ip {
     use nom::{
@@ -79,27 +113,6 @@ mod ip {
     }
 }
 
-struct IRI {
-    scheme: Option<String>,
-    i_hier_part: Option<IHierPart>,
-}
-
-struct IHierPart {
-    authority: Option<Authority>,
-}
-
-struct Authority {
-    user_info: Option<String>,
-    host: Host,
-    port: Option<String>,
-}
-
-enum Host {
-    IPV4(Vec<u8>),
-    IPV6(Vec<u16>),
-    RegName(Option<String>),
-}
-
 #[allow(unused)]
 mod parser {
     use nom::{
@@ -113,7 +126,7 @@ mod parser {
 
     use super::{
         ip::{self, parse_ip_v4, parse_ip_v6},
-        Authority, Host,
+        Authority, Host, IPath,
     };
 
     fn parse_authority(s: &str) -> ParserResult<Authority> {
@@ -137,6 +150,51 @@ mod parser {
             map(parse_ip_v6, Host::IPV6),
             map(opt(parse_i_reg_name), Host::RegName),
         ))(s)
+    }
+
+    fn parse_i_fragment(s: &str) -> ParserResult<String> {
+        fold_many0(
+            alt((parse_ip_char, tag("/"), tag("?"))),
+            String::new,
+            |mut acc, item| {
+                acc.push_str(item);
+                acc
+            },
+        )(s)
+    }
+    fn parse_ipath_empty(s: &str) -> ParserResult<IPath> {
+        map(
+            verify(peek(opt(parse_ip_char)), |ip_char| ip_char.is_none()),
+            |_| IPath::Empty,
+        )(s)
+    }
+
+    fn parse_ipath_rootless(s: &str) -> ParserResult<IPath> {
+        map(
+            pair(
+                parse_i_segmentnz_nc,
+                many0(preceded(tag("/"), parse_i_segment0)),
+            ),
+            |(snz_nc, segments)| IPath::Rootless { snz_nc, segments },
+        )(s)
+    }
+
+    fn parse_ipath_abempty(s: &str) -> ParserResult<IPath> {
+        map(many0(preceded(tag("/"), parse_i_segment0)), IPath::AbEmpty)(s)
+    }
+    fn parse_ipath_absolute(s: &str) -> ParserResult<IPath> {
+        let (first_two, _) = peek(take(2usize))(s)?;
+        let parser = pair(
+            parse_i_segmentnz,
+            many0(preceded(tag("/"), parse_i_segment0)),
+        );
+        verify(
+            map(parser, |(snz, segments)| IPath::AbAbsolute {
+                snz,
+                segments,
+            }),
+            move |_| first_two.starts_with("/") && first_two != "//",
+        )(s)
     }
     fn parse_i_segmentnz(s: &str) -> ParserResult<String> {
         fold_many0(parse_ip_char, String::new, |mut acc, item| {
@@ -209,6 +267,18 @@ mod parser {
             },
         )(s)
     }
+    fn parse_i_private(s: &str) -> ParserResult<&str> {
+        verify(take(1usize), |hex: &str| {
+            hex.starts_with(|c: char| {
+                matches!(
+                    c,
+                    '\u{E000}'..='\u{F8FF}'
+                    | '\u{F0000}'..='\u{FFFFD}'
+                    | '\u{100000}'..='\u{10FFFD}'
+                )
+            })
+        })(s)
+    }
     fn parse_i_unreserved(s: &str) -> ParserResult<&str> {
         fn is_ucs_char(c: &char) -> bool {
             matches!(c,
@@ -231,12 +301,11 @@ mod parser {
                 '\u{E1000}'..='\u{EFFFD}'
             )
         }
-        alt((
-            verify(take(2usize), |hex: &str| {
-                hex_to_char(hex).filter(|x| is_ucs_char(x)).is_some()
-            }),
-            take_while1(|c: char| c.is_alphanum() || c == '-' || c == '.' || c == '_' || c == '~'),
-        ))(s)
+        verify(take(1usize), |unres: &str| {
+            unres.starts_with(|c: char| {
+                c.is_alphanum() || c == '-' || c == '.' || c == '_' || c == '~' || is_ucs_char(&c)
+            })
+        })(s)
     }
     fn parse_sub_delims(s: &str) -> ParserResult<&str> {
         verify(take(1usize), |c: &str| {

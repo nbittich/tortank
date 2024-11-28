@@ -1,9 +1,20 @@
-FC 3987         Internationalized Resource Identifiers     January 2005
 
+   IRI            = scheme ":" ihier-part [ "?" iquery ]
+                         [ "#" ifragment ]
 
-                  / ipath-noscheme
+   ihier-part     = "//" iauthority ipath-abempty
+                  / ipath-absolute
+                  / ipath-rootless
                   / ipath-empty
 
+   IRI-reference  = IRI / irelative-ref
+
+   absolute-IRI   = scheme ":" ihier-part [ "?" iquery ]
+
+   irelative-ref  = irelative-part [ "?" iquery ] [ "#" ifragment ]
+
+   irelative-part = "//" iauthority ipath-abempty
+                       / ipath-absolute
 
 
 
@@ -13,11 +24,7 @@ FC 3987         Internationalized Resource Identifiers     January 2005
                   / ipath-rootless  ; begins with a segment
                   / ipath-empty     ; zero characters
 
-   ipath-abempty  = *( "/" isegment )
-   ipath-absolute = "/" [ isegment-nz *( "/" isegment ) ]
    ipath-noscheme = isegment-nz-nc *( "/" isegment )
-   ipath-rootless = isegment-nz *( "/" isegment )
-   ipath-empty    = 0<ipchar>
 
 
 
@@ -25,11 +32,9 @@ FC 3987         Internationalized Resource Identifiers     January 2005
 
    iquery         = *( ipchar / iprivate / "/" / "?" )
 
-   ifragment      = *( ipchar / "/" / "?" )
 
 
 
-   iprivate       = %xE000-F8FF / %xF0000-FFFFD / %x100000-10FFFD
 
    Some productions are ambiguous.  The "first-match-wins" (a.k.a.
    "greedy") algorithm applies.  For details, see [RFC3986].
@@ -68,6 +73,7 @@ RFC 3987         Internationalized Resource Identifiers     January 2005
 
 DONE:
 
+   ipath-abempty  = *( "/" isegment )
    ipchar         = iunreserved / pct-encoded / sub-delims / ":"
                   / "@"
    iauthority     = [ iuserinfo "@" ] ihost [ ":" port ]
@@ -116,3 +122,11 @@ ls32           = ( h16 ":" h16 ) / IPv4address
       isegment-nz-nc = 1*( iunreserved / pct-encoded / sub-delims
                         / "@" )
                   ; non-zero-length segment without any colon ":"
+                     ipath-absolute = "/" [ isegment-nz *( "/" isegment ) ]
+
+   ipath-rootless = isegment-nz *( "/" isegment )
+      ipath-empty    = 0<ipchar>
+
+   ifragment      = *( ipchar / "/" / "?" )
+      iprivate       = %xE000-F8FF / %xF0000-FFFFD / %x100000-10FFFD
+
