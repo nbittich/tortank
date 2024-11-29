@@ -1,24 +1,52 @@
-pub struct IRI {
-    pub scheme: Option<String>,
-    pub i_hier_part: Option<IHierPart>,
+#[derive(Debug)]
+pub enum IRI {
+    IRI {
+        scheme: String,
+        hier_part: IHierPart,
+        query: String,
+        fragment: String,
+    },
+    Reference(RelativeRef),
+    Absolute {
+        scheme: String,
+        hier_part: IHierPart,
+        query: String,
+    },
 }
 
+#[derive(Debug)]
 pub struct IHierPart {
-    pub authority: Option<Authority>,
+    pub authority: Authority,
+    pub ipath: IPath,
 }
 
+#[derive(Debug)]
+pub struct RelativePart {
+    pub authority: Authority,
+    pub ipath: IPath,
+}
+
+#[derive(Debug)]
+pub struct RelativeRef {
+    pub relative_part: RelativePart,
+    pub query: String,
+    pub fragment: String,
+}
+#[derive(Debug)]
 pub struct Authority {
     pub user_info: Option<String>,
     pub host: Host,
     pub port: Option<String>,
 }
 
+#[derive(Debug)]
 pub enum Host {
     IPV4(Vec<u8>),
     IPV6(Vec<u16>),
     RegName(Option<String>),
 }
 
+#[derive(Debug)]
 pub enum IPath {
     AbEmpty(Vec<String>), // starts with / or is empty
     AbAbsolute {
@@ -30,6 +58,14 @@ pub enum IPath {
         segments: Vec<String>,
     },
     Empty, // ipath-empty
+}
+
+use parser::{parse_absolute_iri, parse_iri, parse_iri_reference};
+
+use crate::prelude::{alt, ParserResult};
+
+pub fn parse(s: &str) -> ParserResult<IRI> {
+    alt((parse_iri, parse_absolute_iri, parse_iri_reference))(s)
 }
 
 #[allow(unused)]
@@ -126,9 +162,19 @@ mod parser {
 
     use super::{
         ip::{self, parse_ip_v4, parse_ip_v6},
-        Authority, Host, IPath,
+        Authority, Host, IHierPart, IPath, RelativePart, RelativeRef, IRI,
     };
 
+    fn parse_i_query(s: &str) -> ParserResult<String> {
+        fold_many0(
+            alt((parse_ip_char, parse_i_private, tag("/"), tag("?"))),
+            String::new,
+            |mut acc, item| {
+                acc.push_str(item);
+                acc
+            },
+        )(s)
+    }
     fn parse_authority(s: &str) -> ParserResult<Authority> {
         map(
             tuple((
@@ -144,6 +190,82 @@ mod parser {
         )(s)
     }
 
+    pub(super) fn parse_iri_reference(s: &str) -> ParserResult<IRI> {
+        map(parse_i_relative_ref, IRI::Reference)(s)
+    }
+    pub(super) fn parse_iri(s: &str) -> ParserResult<IRI> {
+        map(
+            tuple((
+                parse_scheme,
+                preceded(tag(":"), parse_i_hier_part),
+                preceded(opt(tag("?")), parse_i_query),
+                preceded(opt(tag("#")), parse_i_fragment),
+            )),
+            |(scheme, hier_part, query, fragment)| IRI::IRI {
+                scheme: scheme.into(),
+                hier_part,
+                query: query.into(),
+                fragment,
+            },
+        )(s)
+    }
+    pub(super) fn parse_absolute_iri(s: &str) -> ParserResult<IRI> {
+        map(
+            tuple((
+                parse_scheme,
+                preceded(tag(":"), parse_i_hier_part),
+                preceded(opt(tag("?")), parse_i_query),
+            )),
+            |(scheme, hier_part, query)| IRI::Absolute {
+                scheme: scheme.into(),
+                hier_part,
+                query: query.into(),
+            },
+        )(s)
+    }
+    fn parse_i_relative_ref(s: &str) -> ParserResult<RelativeRef> {
+        map(
+            tuple((
+                parse_i_relative_part,
+                preceded(opt(tag("?")), parse_i_query),
+                preceded(opt(tag("#")), parse_i_fragment),
+            )),
+            |(relative_part, query, fragment)| RelativeRef {
+                relative_part,
+                query,
+                fragment,
+            },
+        )(s)
+    }
+    fn parse_i_relative_part(s: &str) -> ParserResult<RelativePart> {
+        map(
+            preceded(
+                tag("//"),
+                pair(
+                    parse_authority,
+                    alt((parse_ipath_abempty, parse_ipath_absolute)),
+                ),
+            ),
+            |(authority, ipath)| RelativePart { authority, ipath },
+        )(s)
+    }
+    fn parse_i_hier_part(s: &str) -> ParserResult<IHierPart> {
+        map(
+            preceded(
+                tag("//"),
+                pair(
+                    parse_authority,
+                    alt((
+                        parse_ipath_abempty,
+                        parse_ipath_absolute,
+                        parse_ipath_rootless,
+                        parse_ipath_empty,
+                    )),
+                ),
+            ),
+            |(authority, ipath)| IHierPart { authority, ipath },
+        )(s)
+    }
     fn parse_host(s: &str) -> ParserResult<Host> {
         alt((
             map(parse_ip_v4, Host::IPV4),
