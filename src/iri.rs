@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum IRI {
     IRI {
         scheme: String,
@@ -14,58 +14,84 @@ pub enum IRI {
     },
 }
 
-#[derive(Debug)]
-pub struct IHierPart {
-    pub authority: Authority,
-    pub ipath: IPath,
+#[derive(Debug, PartialEq)]
+pub enum IHierPart {
+    AbEmpty { authority: Authority, ipath: IPath },
+    Absolute(IPath),
+    Rootless(IPath),
+    Empty,
 }
 
-#[derive(Debug)]
-pub struct RelativePart {
-    pub authority: Authority,
-    pub ipath: IPath,
+#[derive(Debug, PartialEq)]
+pub enum RelativePart {
+    AbEmpty { authority: Authority, ipath: IPath },
+    Absolute(IPath),
+    NoScheme(IPath),
+    Empty(IPath),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct RelativeRef {
     pub relative_part: RelativePart,
     pub query: String,
     pub fragment: String,
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Authority {
     pub user_info: Option<String>,
     pub host: Host,
     pub port: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Host {
     IPV4(Vec<u8>),
     IPV6(Vec<u16>),
     RegName(Option<String>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum IPath {
     AbEmpty(Vec<String>), // starts with / or is empty
-    AbAbsolute {
+    Absolute {
         snz: String,           // segment non zero (isegment-nz)
         segments: Vec<String>, // isegment
     },
     Rootless {
+        snz: String, // isegment-nz
+        segments: Vec<String>,
+    },
+
+    NoScheme {
         snz_nc: String, // isegment-nz-nc
         segments: Vec<String>,
     },
     Empty, // ipath-empty
 }
 
+use nom::error::{ParseError, VerboseError};
 use parser::{parse_absolute_iri, parse_iri, parse_iri_reference};
 
-use crate::prelude::{alt, ParserResult};
+use crate::prelude::alt;
 
-pub fn parse(s: &str) -> ParserResult<IRI> {
-    alt((parse_iri, parse_absolute_iri, parse_iri_reference))(s)
+impl<'a> TryFrom<&'a str> for IRI {
+    type Error = nom::Err<VerboseError<&'a str>>;
+
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+        match alt((parse_iri, parse_absolute_iri, parse_iri_reference))(value) {
+            Ok((rest, iri)) => {
+                if !rest.trim().is_empty() {
+                    Err(nom::Err::Error(VerboseError::from_error_kind(
+                        value,
+                        nom::error::ErrorKind::NonEmpty,
+                    )))
+                } else {
+                    Ok(iri)
+                }
+            }
+            Err(e) => Err(e),
+        }
+    }
 }
 
 #[allow(unused)]
@@ -178,7 +204,7 @@ mod parser {
     fn parse_authority(s: &str) -> ParserResult<Authority> {
         map(
             tuple((
-                opt(parse_userinfo),
+                opt(terminated(parse_userinfo, tag("@"))),
                 parse_host,
                 opt(preceded(tag(":"), parse_port)),
             )),
@@ -204,7 +230,7 @@ mod parser {
             |(scheme, hier_part, query, fragment)| IRI::IRI {
                 scheme: scheme.into(),
                 hier_part,
-                query: query.into(),
+                query,
                 fragment,
             },
         )(s)
@@ -219,7 +245,7 @@ mod parser {
             |(scheme, hier_part, query)| IRI::Absolute {
                 scheme: scheme.into(),
                 hier_part,
-                query: query.into(),
+                query,
             },
         )(s)
     }
@@ -238,38 +264,34 @@ mod parser {
         )(s)
     }
     fn parse_i_relative_part(s: &str) -> ParserResult<RelativePart> {
-        map(
-            preceded(
-                tag("//"),
-                pair(
-                    parse_authority,
-                    alt((parse_ipath_abempty, parse_ipath_absolute)),
-                ),
+        alt((
+            map(
+                preceded(tag("//"), pair(parse_authority, parse_ipath_abempty)),
+                |(authority, ipath)| RelativePart::AbEmpty { authority, ipath },
             ),
-            |(authority, ipath)| RelativePart { authority, ipath },
-        )(s)
+            map(parse_ipath_absolute, RelativePart::Absolute),
+            map(parse_ipath_noscheme, RelativePart::NoScheme),
+            map(parse_ipath_empty, RelativePart::Empty),
+        ))(s)
     }
     fn parse_i_hier_part(s: &str) -> ParserResult<IHierPart> {
-        map(
-            preceded(
-                tag("//"),
-                pair(
-                    parse_authority,
-                    alt((
-                        parse_ipath_abempty,
-                        parse_ipath_absolute,
-                        parse_ipath_rootless,
-                        parse_ipath_empty,
-                    )),
-                ),
+        alt((
+            map(
+                preceded(tag("//"), pair(parse_authority, parse_ipath_abempty)),
+                |(authority, ipath)| IHierPart::AbEmpty { authority, ipath },
             ),
-            |(authority, ipath)| IHierPart { authority, ipath },
-        )(s)
+            map(parse_ipath_absolute, IHierPart::Absolute),
+            map(parse_ipath_rootless, IHierPart::Rootless),
+            map(parse_ipath_empty, |(path)| IHierPart::Empty),
+        ))(s)
     }
     fn parse_host(s: &str) -> ParserResult<Host> {
         alt((
+            map(
+                preceded(opt(tag("[")), terminated(parse_ip_v6, opt(tag("]")))),
+                Host::IPV6,
+            ),
             map(parse_ip_v4, Host::IPV4),
-            map(parse_ip_v6, Host::IPV6),
             map(opt(parse_i_reg_name), Host::RegName),
         ))(s)
     }
@@ -294,26 +316,44 @@ mod parser {
     fn parse_ipath_rootless(s: &str) -> ParserResult<IPath> {
         map(
             pair(
-                parse_i_segmentnz_nc,
-                many0(preceded(tag("/"), parse_i_segment0)),
+                parse_i_segmentnz,
+                many0(recognize(preceded(tag("/"), parse_i_segment0))),
             ),
-            |(snz_nc, segments)| IPath::Rootless { snz_nc, segments },
+            |(snz, segments)| IPath::Rootless {
+                snz,
+                segments: segments.into_iter().map(String::from).collect(),
+            },
         )(s)
     }
 
+    fn parse_ipath_noscheme(s: &str) -> ParserResult<IPath> {
+        map(
+            pair(
+                parse_i_segmentnz_nc,
+                many0(recognize(preceded(tag("/"), parse_i_segment0))),
+            ),
+            |(snz_nc, segments)| IPath::NoScheme {
+                snz_nc,
+                segments: segments.into_iter().map(String::from).collect(),
+            },
+        )(s)
+    }
     fn parse_ipath_abempty(s: &str) -> ParserResult<IPath> {
-        map(many0(preceded(tag("/"), parse_i_segment0)), IPath::AbEmpty)(s)
+        map(
+            many0(recognize(preceded(tag("/"), parse_i_segment0))),
+            |v| IPath::AbEmpty(v.into_iter().map(String::from).collect()),
+        )(s)
     }
     fn parse_ipath_absolute(s: &str) -> ParserResult<IPath> {
         let (first_two, _) = peek(take(2usize))(s)?;
         let parser = pair(
             parse_i_segmentnz,
-            many0(preceded(tag("/"), parse_i_segment0)),
+            many0(recognize(preceded(tag("/"), parse_i_segment0))),
         );
         verify(
-            map(parser, |(snz, segments)| IPath::AbAbsolute {
+            map(parser, |(snz, segments)| IPath::Absolute {
                 snz,
-                segments,
+                segments: segments.into_iter().map(String::from).collect(),
             }),
             move |_| first_two.starts_with("/") && first_two != "//",
         )(s)
@@ -453,16 +493,19 @@ mod parser {
         ))(s)
     }
     fn hex_to_char(hex: &str) -> Option<char> {
-        u32::from_str_radix(hex, 16)
-            .ok()
-            .and_then(|u| char::from_u32(u))
+        u32::from_str_radix(hex, 16).ok().and_then(char::from_u32)
     }
 }
 
 #[cfg(test)]
 mod test {
 
-    use crate::iri::ip::{parse_ip_v4, parse_ip_v6};
+    use crate::iri::{
+        ip::{parse_ip_v4, parse_ip_v6},
+        Authority, Host, IHierPart, IPath, RelativePart, RelativeRef,
+    };
+
+    use super::IRI;
 
     #[test]
     fn test_hex_st_to_char() {
@@ -570,5 +613,238 @@ mod test {
         }
 
         assert!(parse_ip_v6("192.168.1.1:0::ffff").is_err());
+    }
+
+    #[test]
+    fn test_iris() {
+        let iri = IRI::try_from("http://example.com/").unwrap();
+        assert_eq!(
+            iri,
+            IRI::IRI {
+                scheme: "http".into(),
+                hier_part: IHierPart::AbEmpty {
+                    authority: Authority {
+                        user_info: None,
+                        host: Host::RegName(Some("example.com".into(),),),
+                        port: None,
+                    },
+                    ipath: IPath::AbEmpty(vec!["/".into(),],),
+                },
+                query: "".into(),
+                fragment: "".into(),
+            }
+        );
+
+        let iri = IRI::try_from("https://example.com/page").unwrap();
+        assert_eq!(
+            iri,
+            IRI::IRI {
+                scheme: "https".into(),
+                hier_part: IHierPart::AbEmpty {
+                    authority: Authority {
+                        user_info: None,
+                        host: Host::RegName(Some("example.com".into(),),),
+                        port: None,
+                    },
+                    ipath: IPath::AbEmpty(vec!["/page".into(),],),
+                },
+                query: "".into(),
+                fragment: "".into(),
+            }
+        );
+
+        let iri = IRI::try_from("ftp://ftp.example.org/file.txt").unwrap();
+        assert_eq!(
+            iri,
+            IRI::IRI {
+                scheme: "ftp".into(),
+                hier_part: IHierPart::AbEmpty {
+                    authority: Authority {
+                        user_info: None,
+                        host: Host::RegName(Some("ftp.example.org".into(),),),
+                        port: None,
+                    },
+                    ipath: IPath::AbEmpty(vec!["/file.txt".into(),],),
+                },
+                query: "".into(),
+                fragment: "".into(),
+            }
+        );
+
+        let iri = IRI::try_from("http://example.com/a/b%20c").unwrap();
+        assert_eq!(
+            iri,
+            IRI::IRI {
+                scheme: "http".into(),
+                hier_part: IHierPart::AbEmpty {
+                    authority: Authority {
+                        user_info: None,
+                        host: Host::RegName(Some("example.com".into(),),),
+                        port: None,
+                    },
+                    ipath: IPath::AbEmpty(vec!["/a".into(), "/b%20c".into()],),
+                },
+                query: "".into(),
+                fragment: "".into(),
+            }
+        );
+
+        let iri = IRI::try_from("http://example.com/a/こんにちは").unwrap();
+        assert_eq!(
+            iri,
+            IRI::IRI {
+                scheme: "http".into(),
+                hier_part: IHierPart::AbEmpty {
+                    authority: Authority {
+                        user_info: None,
+                        host: Host::RegName(Some("example.com".into(),),),
+                        port: None,
+                    },
+                    ipath: IPath::AbEmpty(vec!["/a".into(), "/こんにちは".into()],),
+                },
+                query: "".into(),
+                fragment: "".into(),
+            }
+        );
+
+        let iri = IRI::try_from("mailto:user@example.com").unwrap();
+        assert_eq!(
+            iri,
+            IRI::IRI {
+                scheme: "mailto".into(),
+                hier_part: IHierPart::Rootless(IPath::Rootless {
+                    snz: "user@example.com".into(),
+                    segments: vec![]
+                }),
+                query: "".into(),
+                fragment: "".into(),
+            }
+        );
+
+        let iri = IRI::try_from("http://example.com/?q=foo%3Dbar").unwrap();
+        assert_eq!(
+            iri,
+            IRI::IRI {
+                scheme: "http".into(),
+                hier_part: IHierPart::AbEmpty {
+                    authority: Authority {
+                        user_info: None,
+                        host: Host::RegName(Some("example.com".into(),),),
+                        port: None,
+                    },
+                    ipath: IPath::AbEmpty(vec!["/".into()],),
+                },
+                query: "q=foo%3Dbar".into(),
+                fragment: "".into(),
+            }
+        );
+        let iri = IRI::try_from("/a/b/c").unwrap();
+        assert_eq!(
+            iri,
+            IRI::Reference(RelativeRef {
+                relative_part: RelativePart::Absolute(IPath::Absolute {
+                    snz: "".into(),
+                    segments: vec!["/a".into(), "/b".into(), "/c".into(),],
+                },),
+                query: "".into(),
+                fragment: "".into(),
+            },)
+        );
+
+        let iri = IRI::try_from("./c").unwrap();
+        assert_eq!(
+            iri,
+            IRI::Reference(RelativeRef {
+                relative_part: RelativePart::NoScheme(IPath::NoScheme {
+                    snz_nc: ".".into(),
+                    segments: vec!["/c".into(),],
+                },),
+                query: "".into(),
+                fragment: "".into(),
+            },)
+        );
+        let iri = IRI::try_from("../b/c").unwrap();
+        assert_eq!(
+            iri,
+            IRI::Reference(RelativeRef {
+                relative_part: RelativePart::NoScheme(IPath::NoScheme {
+                    snz_nc: "..".into(),
+                    segments: vec!["/b".into(), "/c".into(),],
+                },),
+                query: "".into(),
+                fragment: "".into(),
+            },)
+        );
+        let iri = IRI::try_from("http://xn--fsq.com").unwrap();
+        assert_eq!(
+            iri,
+            IRI::IRI {
+                scheme: "http".into(),
+                hier_part: IHierPart::AbEmpty {
+                    authority: Authority {
+                        user_info: None,
+                        host: Host::RegName(Some("xn--fsq.com".into(),),),
+                        port: None,
+                    },
+                    ipath: IPath::AbEmpty(vec![],),
+                },
+                query: "".into(),
+                fragment: "".into(),
+            }
+        );
+        let iri = IRI::try_from("http://[2001:db8::1]/path").unwrap();
+        assert_eq!(
+            iri,
+            IRI::IRI {
+                scheme: "http".into(),
+                hier_part: IHierPart::AbEmpty {
+                    authority: Authority {
+                        user_info: None,
+                        host: Host::IPV6(vec![0x2001, 0xdb8, 0, 0, 0, 0, 0, 1]),
+                        port: None,
+                    },
+                    ipath: IPath::AbEmpty(vec!["/path".into()],),
+                },
+                query: "".into(),
+                fragment: "".into(),
+            }
+        );
+        let iri = IRI::try_from("ftp://example.com/path?query=1&param=2#fragment").unwrap();
+        assert_eq!(
+            iri,
+            IRI::IRI {
+                scheme: "ftp".into(),
+                hier_part: IHierPart::AbEmpty {
+                    authority: Authority {
+                        user_info: None,
+                        host: Host::RegName(Some("example.com".into(),),),
+                        port: None,
+                    },
+                    ipath: IPath::AbEmpty(vec!["/path".into()],),
+                },
+                query: "query=1&param=2".into(),
+                fragment: "fragment".into(),
+            }
+        );
+        let iri = IRI::try_from("http://user:pass@example.com:8080/path?q#frag").unwrap();
+        assert_eq!(
+            iri,
+            IRI::IRI {
+                scheme: "http".into(),
+                hier_part: IHierPart::AbEmpty {
+                    authority: Authority {
+                        user_info: Some("user:pass".into()),
+                        host: Host::RegName(Some("example.com".into())),
+                        port: Some("8080".into()),
+                    },
+                    ipath: IPath::AbEmpty(vec!["/path".into()],),
+                },
+                query: "q".into(),
+                fragment: "frag".into(),
+            }
+        );
+        assert!(IRI::try_from("://example.com").is_err());
+        assert!(IRI::try_from("`http://example.com/").is_err());
+        assert!(IRI::try_from("http://example.com/\n/path").is_err());
     }
 }
