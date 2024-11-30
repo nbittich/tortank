@@ -846,5 +846,17 @@ mod test {
         assert!(IRI::try_from("://example.com").is_err());
         assert!(IRI::try_from("`http://example.com/").is_err());
         assert!(IRI::try_from("http://example.com/\n/path").is_err());
+        let iri = IRI::try_from("path/").unwrap();
+        assert_eq!(
+            iri,
+            IRI::Reference(RelativeRef {
+                relative_part: RelativePart::NoScheme(IPath::NoScheme {
+                    snz_nc: "path".into(),
+                    segments: vec!["/".into(),],
+                },),
+                query: "".into(),
+                fragment: "".into(),
+            },)
+        );
     }
 }
