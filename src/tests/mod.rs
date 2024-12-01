@@ -21,6 +21,7 @@ fn cmp_input_file(
         &mut input_buf,
     )
     .unwrap();
+    println!("len: {}", input.len());
 
     if output_json {
         let f = File::open(

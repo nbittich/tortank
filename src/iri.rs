@@ -79,7 +79,7 @@ use nom::{
     combinator::complete,
     error::{ParseError, VerboseError},
 };
-use parser::{parse_absolute_iri, parse_iri, parse_iri_reference};
+use parser::{parse_absolute_iri, parse_iri, parse_iri_reference, parse_scheme};
 
 use crate::prelude::alt;
 
@@ -110,6 +110,12 @@ impl<'a> TryFrom<&'a str> for IRI<'a> {
 impl IRI<'_> {
     pub fn is_relative(&self) -> bool {
         matches!(self, IRI::Reference(_))
+    }
+    pub fn has_scheme(s: &str) -> bool {
+        match parse_scheme(s) {
+            Ok((_, scheme)) => !scheme.is_empty(),
+            Err(_) => false,
+        }
     }
 }
 mod ip {
@@ -231,7 +237,7 @@ mod parser {
     pub(super) fn parse_iri(s: &str) -> ParserResult<IRI> {
         map(
             tuple((
-                terminated(parse_scheme, tag(":")),
+                parse_scheme,
                 parse_i_hier_part,
                 preceded(opt(tag("?")), parse_i_query),
                 preceded(opt(tag("#")), parse_i_fragment),
@@ -248,7 +254,7 @@ mod parser {
         map(
             tuple((
                 parse_scheme,
-                preceded(tag(":"), parse_i_hier_part),
+                parse_i_hier_part,
                 preceded(opt(tag("?")), parse_i_query),
             )),
             |(scheme, hier_part, query)| IRI::Absolute {
@@ -383,10 +389,13 @@ mod parser {
             tag("@"),
         ))(s)
     }
-    fn parse_scheme(s: &str) -> ParserResult<&str> {
-        verify(
-            take_while1(|c: char| c.is_alphanumeric() || c == '.' || c == '-' || c == '+'),
-            |scheme: &str| scheme.starts_with(|c: char| c.is_alphabetic()),
+    pub(super) fn parse_scheme(s: &str) -> ParserResult<&str> {
+        terminated(
+            verify(
+                take_while1(|c: char| c.is_alphanumeric() || c == '.' || c == '-' || c == '+'),
+                |scheme: &str| scheme.starts_with(|c: char| c.is_alphabetic()),
+            ),
+            tag(":"),
         )(s)
     }
     fn parse_userinfo(s: &str) -> ParserResult<&str> {

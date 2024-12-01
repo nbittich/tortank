@@ -408,10 +408,12 @@ impl<'a> TurtleDoc<'a> {
     ) -> Result<Node<'x>, TurtleDocError> {
         match s {
             TurtleValue::Iri(Iri::Enclosed(iri)) => {
-                let iri_rfc3987 = IRI::try_from(iri).map_err(|e| TurtleDocError {
-                    message: e.to_string(),
-                })?;
-                if iri_rfc3987.is_relative() {
+                // FIXME this is better but slow.
+                // Call if iri.is_relative instead of has_scheme
+                // let iri_rfc3987 = IRI::try_from(iri).map_err(|e| TurtleDocError {
+                //     message: e.to_string(),
+                // })?;
+                if !IRI::has_scheme(iri) {
                     if let Some(base) = base {
                         let iri = (*base).to_owned() + iri;
                         return Ok(Node::Iri(Cow::Owned(iri.to_string())));
