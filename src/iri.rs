@@ -500,7 +500,7 @@ mod test {
 
     #[test]
     fn test_hex_st_to_char() {
-        println!("{}", u8::from_str_radix("3A", 16).unwrap() as char);
+        assert_eq!(':', u8::from_str_radix("3A", 16).unwrap() as char);
     }
     #[test]
     fn parse_ip_v4_test() {

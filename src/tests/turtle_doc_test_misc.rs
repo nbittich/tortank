@@ -5,7 +5,7 @@ use crate::{
     },
 };
 use serial_test::serial;
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 use Cow::Borrowed;
 use Node::Iri;
 
@@ -60,7 +60,14 @@ fn turtle_doc_list_statements_test() {
     let turtle: TurtleDoc = (doc, None).try_into().unwrap();
     let statements = turtle.list_statements(None, None, Some(&Iri(Borrowed("bob@example.com"))));
     assert_eq!(1, statements.len());
-    println!("{statements:?}");
+    assert_eq!(
+        statements,
+        vec![&Statement {
+            subject: Node::Ref(Arc::new(Node::LabeledBlankNode("10".into()))),
+            predicate: Node::Iri(Cow::Borrowed("http://foaf.com/mbox")),
+            object: Node::Iri(Cow::Borrowed("bob@example.com"))
+        }]
+    );
     let statement = statements[0];
     let statements = turtle.list_statements(Some(&statement.subject), None, None);
     assert_eq!(5, statements.len());
