@@ -1,4 +1,5 @@
 # turtle parser
+
 <i>transforms a turtle string to a TurtleDoc</i>
 
 ## Work in progress
@@ -8,14 +9,16 @@
 - Comments are filtered
 
 ## Todo
+
 - error handling
-- iri as described in the spec
+- <s>iri as described in the spec</s>
 - cleanup
 - Jena like api
 
 ### Example
 
 #### Input
+
 ```turtle
    @prefix foaf: <http://foaf.com/>.
     [ foaf:name "Alice" ] foaf:knows [
@@ -26,7 +29,9 @@
     foaf:mbox <bob@example.com>] .
 
 ```
+
 #### Output
+
 ```turtle
 <http://example.org/.well-known/genid#e162c9a7-52cf-4240-9359-b1b1f977f642> <http://foaf.com/name> "Alice"^^<http://www.w3.org/2001/XMLSchema#string>.
 <http://example.org/.well-known/genid#6955800d-16db-49f8-a614-b0cbea3d7fb2> <http://foaf.com/name> "Bob"^^<http://www.w3.org/2001/XMLSchema#string>.
@@ -39,11 +44,14 @@
 ```
 
 #### Input
+
 ```turtle
 @prefix : <http://example.com/>.
 :a :b ( "apple" "banana" ) .
 ```
+
 #### Output
+
 ```turtle
 <http://example.org/.well-known/genid#018a16a1-9f82-4acd-930e-2be1ea090e83> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "apple"^^<http://www.w3.org/2001/XMLSchema#string>.
 <http://example.org/.well-known/genid#4ef6beb7-5e21-4d77-9459-2662b6845375> <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "banana"^^<http://www.w3.org/2001/XMLSchema#string>.

@@ -170,7 +170,26 @@ impl<'a> TurtleDoc<'a> {
         })?;
         (buf.as_str(), well_known_prefix).try_into()
     }
-
+    pub fn add_prefixes(
+        &mut self,
+        prefixes: BTreeMap<String, String>,
+    ) -> Result<(), TurtleDocError> {
+        let base = self.base.unwrap_or("");
+        let mut prefixes: BTreeMap<Cow<str>, Cow<str>> = prefixes
+            .into_iter()
+            .map(|(k, v)| (Cow::Owned(k), Cow::Owned(v)))
+            .collect();
+        for (_, prefix) in prefixes.iter_mut() {
+            let iri = IRI::try_from(prefix.as_ref()).map_err(|e| TurtleDocError {
+                message: e.to_string(),
+            })?;
+            if iri.is_relative() {
+                *prefix = Cow::Owned(format!("{base}{prefix}"));
+            }
+        }
+        self.prefixes.extend(prefixes);
+        Ok(())
+    }
     pub fn add_statement(&mut self, subject: Node<'a>, predicate: Node<'a>, object: Node<'a>) {
         let stmt = Statement {
             subject,
