@@ -1,4 +1,5 @@
 use crate::grammar::{BLANK_NODE_LABEL, STRING_LITERAL_LONG_QUOTE};
+use crate::iri::IRI;
 use crate::shared::{
     DATE_FORMATS, DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, DEFAULT_TIME_FORMAT, RDF_FIRST,
     RDF_NIL, RDF_REST, TIME_FORMATS, XSD_BOOLEAN, XSD_DATE, XSD_DATE_TIME, XSD_DECIMAL, XSD_DOUBLE,
@@ -51,7 +52,7 @@ pub struct TurtleDocError {
 struct Context<'a> {
     base: Option<&'a str>,
     well_known_prefix: Option<String>,
-    prefixes: BTreeMap<&'a str, &'a str>,
+    prefixes: BTreeMap<Cow<'a, str>, Cow<'a, str>>,
 }
 
 #[derive(Serialize, PartialEq, Deserialize, Clone, Debug)]
@@ -179,18 +180,6 @@ impl<'a> TurtleDoc<'a> {
         if !self.statements.contains(&stmt) {
             self.statements.push(stmt);
         }
-    }
-    pub fn add_prefixes(&mut self, prefixes: BTreeMap<String, String>) {
-        let prefixes: BTreeMap<Cow<str>, Cow<str>> = prefixes
-            .into_iter()
-            .map(|(k, v)| (Cow::Owned(k), Cow::Owned(v)))
-            .collect();
-        // for (k, prefix) in prefixes {
-        //     if self.prefixes.contains_key(&k) {
-        //         panic("FIXME. https://www.ietf.org/rfc/rfc3987.html");
-        //     }
-        // }
-        self.prefixes.extend(prefixes);
     }
     pub fn len(&self) -> usize {
         self.statements.len()
@@ -369,9 +358,17 @@ impl<'a> TurtleDoc<'a> {
                 TurtleValue::Base(base) => {
                     context.base = Some(Self::extract_iri(base)?);
                 }
-                TurtleValue::Prefix((prefix, iri)) => {
-                    let iri = TurtleDoc::extract_iri(iri)?;
-                    context.prefixes.insert(prefix, iri);
+                TurtleValue::Prefix((k, prefix)) => {
+                    let mut prefix = Cow::Borrowed(TurtleDoc::extract_iri(prefix)?);
+                    let k = Cow::Borrowed(k);
+                    let base = context.base.unwrap_or("");
+                    let iri = IRI::try_from(prefix.as_ref()).map_err(|e| TurtleDocError {
+                        message: e.to_string(),
+                    })?;
+                    if iri.is_relative() {
+                        prefix = Cow::Owned(format!("{base}{prefix}"));
+                    }
+                    context.prefixes.insert(k, prefix);
                 }
                 statement @ TurtleValue::Statement {
                     subject: _,
@@ -390,11 +387,7 @@ impl<'a> TurtleDoc<'a> {
             base: context.base,
             well_known_prefix: context.well_known_prefix,
             statements,
-            prefixes: context
-                .prefixes
-                .into_iter()
-                .map(|(k, v)| (Cow::Borrowed(k), (Cow::Borrowed(v))))
-                .collect(),
+            prefixes: context.prefixes,
         })
     }
 
@@ -415,7 +408,10 @@ impl<'a> TurtleDoc<'a> {
     ) -> Result<Node<'x>, TurtleDocError> {
         match s {
             TurtleValue::Iri(Iri::Enclosed(iri)) => {
-                if !iri.starts_with("http://") && !iri.starts_with("https://") {
+                let iri_rfc3987 = IRI::try_from(iri).map_err(|e| TurtleDocError {
+                    message: e.to_string(),
+                })?;
+                if iri_rfc3987.is_relative() {
                     if let Some(base) = base {
                         let iri = (*base).to_owned() + iri;
                         return Ok(Node::Iri(Cow::Owned(iri.to_string())));
@@ -556,11 +552,7 @@ impl<'a> TurtleDoc<'a> {
     ) -> Result<Node<'a>, TurtleDocError> {
         match value {
             v @ TurtleValue::Iri(_) | v @ TurtleValue::Literal(_) => {
-                let prefixes: BTreeMap<Cow<str>, Cow<str>> = ctx
-                    .prefixes
-                    .iter()
-                    .map(|(k, v)| (Cow::Borrowed(*k), Cow::Borrowed(*v)))
-                    .collect();
+                let prefixes: BTreeMap<Cow<str>, Cow<str>> = ctx.prefixes.clone();
                 let base = ctx.base.map(Cow::Borrowed);
                 Self::simple_turtle_value_to_node(v, base, prefixes, true)
             }

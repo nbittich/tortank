@@ -1,0 +1,10 @@
+
+<http://example.org/about> a <http://xmlns.com/foaf/0.1/Document> ;
+    <http://xmlns.com/foaf/0.1/title> "An Example Document" ;
+    <http://xmlns.com/foaf/0.1/maker> <http://example.org/people/john-doe> .
+
+<http://example.org/ns#item123> a <http://example.org/ns#Product> ;
+    <http://example.org/ns#price> "19.99"^^<http://www.w3.org/2001/XMLSchema#decimal> ;
+    <http://example.org/ns#availableAt> <http://example.org/store> .
+
+<http://another.example.org/resource> <http://example.org/ns#relatedTo> <http://example.org/ns#item123> .

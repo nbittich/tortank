@@ -1,84 +1,98 @@
 #[derive(Debug, PartialEq)]
-pub enum IRI {
+pub enum IRI<'a> {
     IRI {
-        scheme: String,
-        hier_part: IHierPart,
-        query: String,
-        fragment: String,
+        scheme: &'a str,
+        hier_part: IHierPart<'a>,
+        query: &'a str,
+        fragment: &'a str,
     },
-    Reference(RelativeRef),
+    Reference(RelativeRef<'a>),
     Absolute {
-        scheme: String,
-        hier_part: IHierPart,
-        query: String,
+        scheme: &'a str,
+        hier_part: IHierPart<'a>,
+        query: &'a str,
     },
 }
 
 #[derive(Debug, PartialEq)]
-pub enum IHierPart {
-    AbEmpty { authority: Authority, ipath: IPath },
-    Absolute(IPath),
-    Rootless(IPath),
+pub enum IHierPart<'a> {
+    AbEmpty {
+        authority: Authority<'a>,
+        ipath: IPath<'a>,
+    },
+    Absolute(IPath<'a>),
+    Rootless(IPath<'a>),
     Empty,
 }
 
 #[derive(Debug, PartialEq)]
-pub enum RelativePart {
-    AbEmpty { authority: Authority, ipath: IPath },
-    Absolute(IPath),
-    NoScheme(IPath),
-    Empty(IPath),
+pub enum RelativePart<'a> {
+    AbEmpty {
+        authority: Authority<'a>,
+        ipath: IPath<'a>,
+    },
+    Absolute(IPath<'a>),
+    NoScheme(IPath<'a>),
+    Empty(IPath<'a>),
 }
 
 #[derive(Debug, PartialEq)]
-pub struct RelativeRef {
-    pub relative_part: RelativePart,
-    pub query: String,
-    pub fragment: String,
+pub struct RelativeRef<'a> {
+    pub relative_part: RelativePart<'a>,
+    pub query: &'a str,
+    pub fragment: &'a str,
 }
 #[derive(Debug, PartialEq)]
-pub struct Authority {
-    pub user_info: Option<String>,
-    pub host: Host,
-    pub port: Option<String>,
+pub struct Authority<'a> {
+    pub user_info: Option<&'a str>,
+    pub host: Host<'a>,
+    pub port: Option<&'a str>,
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Host {
+pub enum Host<'a> {
     IPV4(Vec<u8>),
     IPV6(Vec<u16>),
-    RegName(Option<String>),
+    RegName(Option<&'a str>),
 }
 
 #[derive(Debug, PartialEq)]
-pub enum IPath {
-    AbEmpty(Vec<String>), // starts with / or is empty
+pub enum IPath<'a> {
+    AbEmpty(Vec<&'a str>), // starts with / or is empty
     Absolute {
-        snz: String,           // segment non zero (isegment-nz)
-        segments: Vec<String>, // isegment
+        snz: &'a str,           // segment non zero (isegment-nz)
+        segments: Vec<&'a str>, // isegment
     },
     Rootless {
-        snz: String, // isegment-nz
-        segments: Vec<String>,
+        snz: &'a str, // isegment-nz
+        segments: Vec<&'a str>,
     },
 
     NoScheme {
-        snz_nc: String, // isegment-nz-nc
-        segments: Vec<String>,
+        snz_nc: &'a str, // isegment-nz-nc
+        segments: Vec<&'a str>,
     },
     Empty, // ipath-empty
 }
 
-use nom::error::{ParseError, VerboseError};
+use nom::{
+    combinator::complete,
+    error::{ParseError, VerboseError},
+};
 use parser::{parse_absolute_iri, parse_iri, parse_iri_reference};
 
 use crate::prelude::alt;
 
-impl<'a> TryFrom<&'a str> for IRI {
+impl<'a> TryFrom<&'a str> for IRI<'a> {
     type Error = nom::Err<VerboseError<&'a str>>;
 
     fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        match alt((parse_iri, parse_absolute_iri, parse_iri_reference))(value) {
+        match alt((
+            complete(parse_iri),
+            complete(parse_absolute_iri),
+            complete(parse_iri_reference),
+        ))(value)
+        {
             Ok((rest, iri)) => {
                 if !rest.trim().is_empty() {
                     Err(nom::Err::Error(VerboseError::from_error_kind(
@@ -93,8 +107,11 @@ impl<'a> TryFrom<&'a str> for IRI {
         }
     }
 }
-
-#[allow(unused)]
+impl IRI<'_> {
+    pub fn is_relative(&self) -> bool {
+        matches!(self, IRI::Reference(_))
+    }
+}
 mod ip {
     use nom::{
         bytes::complete::take_while_m_n,
@@ -175,31 +192,23 @@ mod ip {
     }
 }
 
-#[allow(unused)]
 mod parser {
     use nom::{
         bytes::streaming::take_while1,
-        character::complete::anychar,
-        error::{ParseError, VerboseError},
-        multi::{fold_many0, fold_many1, many1},
+        multi::{many0_count, many1_count},
     };
 
     use crate::prelude::*;
 
     use super::{
-        ip::{self, parse_ip_v4, parse_ip_v6},
+        ip::{parse_ip_v4, parse_ip_v6},
         Authority, Host, IHierPart, IPath, RelativePart, RelativeRef, IRI,
     };
 
-    fn parse_i_query(s: &str) -> ParserResult<String> {
-        fold_many0(
-            alt((parse_ip_char, parse_i_private, tag("/"), tag("?"))),
-            String::new,
-            |mut acc, item| {
-                acc.push_str(item);
-                acc
-            },
-        )(s)
+    fn parse_i_query(s: &str) -> ParserResult<&str> {
+        let (rest, _) = many0_count(alt((parse_ip_char, parse_i_private, tag("/"), tag("?"))))(s)?;
+        let value = &s[0..s.len() - rest.len()];
+        Ok((rest, value))
     }
     fn parse_authority(s: &str) -> ParserResult<Authority> {
         map(
@@ -211,7 +220,7 @@ mod parser {
             |(user_info, host, port)| Authority {
                 user_info,
                 host,
-                port: port.map(String::from),
+                port,
             },
         )(s)
     }
@@ -222,13 +231,13 @@ mod parser {
     pub(super) fn parse_iri(s: &str) -> ParserResult<IRI> {
         map(
             tuple((
-                parse_scheme,
-                preceded(tag(":"), parse_i_hier_part),
+                terminated(parse_scheme, tag(":")),
+                parse_i_hier_part,
                 preceded(opt(tag("?")), parse_i_query),
                 preceded(opt(tag("#")), parse_i_fragment),
             )),
             |(scheme, hier_part, query, fragment)| IRI::IRI {
-                scheme: scheme.into(),
+                scheme,
                 hier_part,
                 query,
                 fragment,
@@ -243,7 +252,7 @@ mod parser {
                 preceded(opt(tag("?")), parse_i_query),
             )),
             |(scheme, hier_part, query)| IRI::Absolute {
-                scheme: scheme.into(),
+                scheme,
                 hier_part,
                 query,
             },
@@ -282,7 +291,7 @@ mod parser {
             ),
             map(parse_ipath_absolute, IHierPart::Absolute),
             map(parse_ipath_rootless, IHierPart::Rootless),
-            map(parse_ipath_empty, |(path)| IHierPart::Empty),
+            map(parse_ipath_empty, |_| IHierPart::Empty),
         ))(s)
     }
     fn parse_host(s: &str) -> ParserResult<Host> {
@@ -296,15 +305,10 @@ mod parser {
         ))(s)
     }
 
-    fn parse_i_fragment(s: &str) -> ParserResult<String> {
-        fold_many0(
-            alt((parse_ip_char, tag("/"), tag("?"))),
-            String::new,
-            |mut acc, item| {
-                acc.push_str(item);
-                acc
-            },
-        )(s)
+    fn parse_i_fragment(s: &str) -> ParserResult<&str> {
+        let (rest, _) = many0_count(alt((parse_ip_char, tag("/"), tag("?"))))(s)?;
+        let value = &s[0..s.len() - rest.len()];
+        Ok((rest, value))
     }
     fn parse_ipath_empty(s: &str) -> ParserResult<IPath> {
         map(
@@ -317,12 +321,9 @@ mod parser {
         map(
             pair(
                 parse_i_segmentnz,
-                many0(recognize(preceded(tag("/"), parse_i_segment0))),
+                many0(recognize(preceded(tag("/"), parse_i_segmentnz))),
             ),
-            |(snz, segments)| IPath::Rootless {
-                snz,
-                segments: segments.into_iter().map(String::from).collect(),
-            },
+            |(snz, segments)| IPath::Rootless { snz, segments },
         )(s)
     }
 
@@ -332,16 +333,13 @@ mod parser {
                 parse_i_segmentnz_nc,
                 many0(recognize(preceded(tag("/"), parse_i_segment0))),
             ),
-            |(snz_nc, segments)| IPath::NoScheme {
-                snz_nc,
-                segments: segments.into_iter().map(String::from).collect(),
-            },
+            |(snz_nc, segments)| IPath::NoScheme { snz_nc, segments },
         )(s)
     }
     fn parse_ipath_abempty(s: &str) -> ParserResult<IPath> {
         map(
             many0(recognize(preceded(tag("/"), parse_i_segment0))),
-            |v| IPath::AbEmpty(v.into_iter().map(String::from).collect()),
+            IPath::AbEmpty,
         )(s)
     }
     fn parse_ipath_absolute(s: &str) -> ParserResult<IPath> {
@@ -351,40 +349,30 @@ mod parser {
             many0(recognize(preceded(tag("/"), parse_i_segment0))),
         );
         verify(
-            map(parser, |(snz, segments)| IPath::Absolute {
-                snz,
-                segments: segments.into_iter().map(String::from).collect(),
-            }),
+            map(parser, |(snz, segments)| IPath::Absolute { snz, segments }),
             move |_| first_two.starts_with("/") && first_two != "//",
         )(s)
     }
-    fn parse_i_segmentnz(s: &str) -> ParserResult<String> {
-        fold_many0(parse_ip_char, String::new, |mut acc, item| {
-            acc.push_str(item);
-            acc
-        })(s)
+    fn parse_i_segmentnz(s: &str) -> ParserResult<&str> {
+        let (rest, _) = many0_count(parse_ip_char)(s)?;
+        let value = &s[0..s.len() - rest.len()];
+        Ok((rest, value))
     }
-    fn parse_i_segment0(s: &str) -> ParserResult<String> {
-        fold_many0(parse_ip_char, String::new, |mut acc, item| {
-            acc.push_str(item);
-            acc
-        })(s)
+    fn parse_i_segment0(s: &str) -> ParserResult<&str> {
+        let (rest, _) = many0_count(parse_ip_char)(s)?;
+        let value = &s[0..s.len() - rest.len()];
+        Ok((rest, value))
     }
 
-    fn parse_i_segmentnz_nc(s: &str) -> ParserResult<String> {
-        fold_many1(
-            alt((
-                parse_i_unreserved,
-                parse_pct_encoded,
-                parse_sub_delims,
-                tag("@"),
-            )),
-            String::new,
-            |mut acc, item| {
-                acc.push_str(item);
-                acc
-            },
-        )(s)
+    fn parse_i_segmentnz_nc(s: &str) -> ParserResult<&str> {
+        let (rest, _) = many1_count(alt((
+            parse_i_unreserved,
+            parse_pct_encoded,
+            parse_sub_delims,
+            tag("@"),
+        )))(s)?;
+        let value = &s[0..s.len() - rest.len()];
+        Ok((rest, value))
     }
     fn parse_ip_char(s: &str) -> ParserResult<&str> {
         alt((
@@ -401,33 +389,27 @@ mod parser {
             |scheme: &str| scheme.starts_with(|c: char| c.is_alphabetic()),
         )(s)
     }
-    fn parse_userinfo(s: &str) -> ParserResult<String> {
-        fold_many1(
-            alt((
-                parse_pct_encoded,
-                parse_i_unreserved,
-                parse_sub_delims,
-                tag(":"),
-            )),
-            String::new,
-            |mut acc: String, item| {
-                acc.push_str(item);
-                acc
-            },
-        )(s)
+    fn parse_userinfo(s: &str) -> ParserResult<&str> {
+        let (rest, _) = many1_count(alt((
+            parse_pct_encoded,
+            parse_i_unreserved,
+            parse_sub_delims,
+            tag(":"),
+        )))(s)?;
+        let value = &s[0..s.len() - rest.len()];
+        Ok((rest, value))
     }
     fn parse_port(s: &str) -> ParserResult<&str> {
         take_while1(|p: char| p.is_numeric())(s)
     }
-    fn parse_i_reg_name(s: &str) -> ParserResult<String> {
-        fold_many1(
-            alt((parse_pct_encoded, parse_i_unreserved, parse_sub_delims)),
-            String::new,
-            |mut acc: String, item| {
-                acc.push_str(item);
-                acc
-            },
-        )(s)
+    fn parse_i_reg_name(s: &str) -> ParserResult<&str> {
+        let (rest, _) = many1_count(alt((
+            parse_pct_encoded,
+            parse_i_unreserved,
+            parse_sub_delims,
+        )))(s)?;
+        let value = &s[0..s.len() - rest.len()];
+        Ok((rest, value))
     }
     fn parse_i_private(s: &str) -> ParserResult<&str> {
         verify(take(1usize), |hex: &str| {
@@ -492,7 +474,7 @@ mod parser {
             }),
         ))(s)
     }
-    fn hex_to_char(hex: &str) -> Option<char> {
+    fn _hex_to_char(hex: &str) -> Option<char> {
         u32::from_str_radix(hex, 16).ok().and_then(char::from_u32)
     }
 }
@@ -616,22 +598,23 @@ mod test {
     }
 
     #[test]
+
     fn test_iris() {
         let iri = IRI::try_from("http://example.com/").unwrap();
         assert_eq!(
             iri,
             IRI::IRI {
-                scheme: "http".into(),
+                scheme: "http",
                 hier_part: IHierPart::AbEmpty {
                     authority: Authority {
                         user_info: None,
-                        host: Host::RegName(Some("example.com".into(),),),
+                        host: Host::RegName(Some("example.com",),),
                         port: None,
                     },
-                    ipath: IPath::AbEmpty(vec!["/".into(),],),
+                    ipath: IPath::AbEmpty(vec!["/",],),
                 },
-                query: "".into(),
-                fragment: "".into(),
+                query: "",
+                fragment: "",
             }
         );
 
@@ -639,17 +622,17 @@ mod test {
         assert_eq!(
             iri,
             IRI::IRI {
-                scheme: "https".into(),
+                scheme: "https",
                 hier_part: IHierPart::AbEmpty {
                     authority: Authority {
                         user_info: None,
-                        host: Host::RegName(Some("example.com".into(),),),
+                        host: Host::RegName(Some("example.com",),),
                         port: None,
                     },
-                    ipath: IPath::AbEmpty(vec!["/page".into(),],),
+                    ipath: IPath::AbEmpty(vec!["/page",],),
                 },
-                query: "".into(),
-                fragment: "".into(),
+                query: "",
+                fragment: "",
             }
         );
 
@@ -657,17 +640,17 @@ mod test {
         assert_eq!(
             iri,
             IRI::IRI {
-                scheme: "ftp".into(),
+                scheme: "ftp",
                 hier_part: IHierPart::AbEmpty {
                     authority: Authority {
                         user_info: None,
-                        host: Host::RegName(Some("ftp.example.org".into(),),),
+                        host: Host::RegName(Some("ftp.example.org",),),
                         port: None,
                     },
-                    ipath: IPath::AbEmpty(vec!["/file.txt".into(),],),
+                    ipath: IPath::AbEmpty(vec!["/file.txt",],),
                 },
-                query: "".into(),
-                fragment: "".into(),
+                query: "",
+                fragment: "",
             }
         );
 
@@ -675,17 +658,17 @@ mod test {
         assert_eq!(
             iri,
             IRI::IRI {
-                scheme: "http".into(),
+                scheme: "http",
                 hier_part: IHierPart::AbEmpty {
                     authority: Authority {
                         user_info: None,
-                        host: Host::RegName(Some("example.com".into(),),),
+                        host: Host::RegName(Some("example.com",),),
                         port: None,
                     },
-                    ipath: IPath::AbEmpty(vec!["/a".into(), "/b%20c".into()],),
+                    ipath: IPath::AbEmpty(vec!["/a", "/b%20c"],),
                 },
-                query: "".into(),
-                fragment: "".into(),
+                query: "",
+                fragment: "",
             }
         );
 
@@ -693,17 +676,17 @@ mod test {
         assert_eq!(
             iri,
             IRI::IRI {
-                scheme: "http".into(),
+                scheme: "http",
                 hier_part: IHierPart::AbEmpty {
                     authority: Authority {
                         user_info: None,
-                        host: Host::RegName(Some("example.com".into(),),),
+                        host: Host::RegName(Some("example.com",),),
                         port: None,
                     },
-                    ipath: IPath::AbEmpty(vec!["/a".into(), "/こんにちは".into()],),
+                    ipath: IPath::AbEmpty(vec!["/a", "/こんにちは"],),
                 },
-                query: "".into(),
-                fragment: "".into(),
+                query: "",
+                fragment: "",
             }
         );
 
@@ -711,13 +694,13 @@ mod test {
         assert_eq!(
             iri,
             IRI::IRI {
-                scheme: "mailto".into(),
+                scheme: "mailto",
                 hier_part: IHierPart::Rootless(IPath::Rootless {
-                    snz: "user@example.com".into(),
+                    snz: "user@example.com",
                     segments: vec![]
                 }),
-                query: "".into(),
-                fragment: "".into(),
+                query: "",
+                fragment: "",
             }
         );
 
@@ -725,17 +708,17 @@ mod test {
         assert_eq!(
             iri,
             IRI::IRI {
-                scheme: "http".into(),
+                scheme: "http",
                 hier_part: IHierPart::AbEmpty {
                     authority: Authority {
                         user_info: None,
-                        host: Host::RegName(Some("example.com".into(),),),
+                        host: Host::RegName(Some("example.com",),),
                         port: None,
                     },
-                    ipath: IPath::AbEmpty(vec!["/".into()],),
+                    ipath: IPath::AbEmpty(vec!["/"],),
                 },
-                query: "q=foo%3Dbar".into(),
-                fragment: "".into(),
+                query: "q=foo%3Dbar",
+                fragment: "",
             }
         );
         let iri = IRI::try_from("/a/b/c").unwrap();
@@ -743,11 +726,11 @@ mod test {
             iri,
             IRI::Reference(RelativeRef {
                 relative_part: RelativePart::Absolute(IPath::Absolute {
-                    snz: "".into(),
-                    segments: vec!["/a".into(), "/b".into(), "/c".into(),],
+                    snz: "",
+                    segments: vec!["/a", "/b", "/c",],
                 },),
-                query: "".into(),
-                fragment: "".into(),
+                query: "",
+                fragment: "",
             },)
         );
 
@@ -756,11 +739,11 @@ mod test {
             iri,
             IRI::Reference(RelativeRef {
                 relative_part: RelativePart::NoScheme(IPath::NoScheme {
-                    snz_nc: ".".into(),
-                    segments: vec!["/c".into(),],
+                    snz_nc: ".",
+                    segments: vec!["/c",],
                 },),
-                query: "".into(),
-                fragment: "".into(),
+                query: "",
+                fragment: "",
             },)
         );
         let iri = IRI::try_from("../b/c").unwrap();
@@ -768,79 +751,79 @@ mod test {
             iri,
             IRI::Reference(RelativeRef {
                 relative_part: RelativePart::NoScheme(IPath::NoScheme {
-                    snz_nc: "..".into(),
-                    segments: vec!["/b".into(), "/c".into(),],
+                    snz_nc: "..",
+                    segments: vec!["/b", "/c",],
                 },),
-                query: "".into(),
-                fragment: "".into(),
+                query: "",
+                fragment: "",
             },)
         );
         let iri = IRI::try_from("http://xn--fsq.com").unwrap();
         assert_eq!(
             iri,
             IRI::IRI {
-                scheme: "http".into(),
+                scheme: "http",
                 hier_part: IHierPart::AbEmpty {
                     authority: Authority {
                         user_info: None,
-                        host: Host::RegName(Some("xn--fsq.com".into(),),),
+                        host: Host::RegName(Some("xn--fsq.com",),),
                         port: None,
                     },
                     ipath: IPath::AbEmpty(vec![],),
                 },
-                query: "".into(),
-                fragment: "".into(),
+                query: "",
+                fragment: "",
             }
         );
         let iri = IRI::try_from("http://[2001:db8::1]/path").unwrap();
         assert_eq!(
             iri,
             IRI::IRI {
-                scheme: "http".into(),
+                scheme: "http",
                 hier_part: IHierPart::AbEmpty {
                     authority: Authority {
                         user_info: None,
                         host: Host::IPV6(vec![0x2001, 0xdb8, 0, 0, 0, 0, 0, 1]),
                         port: None,
                     },
-                    ipath: IPath::AbEmpty(vec!["/path".into()],),
+                    ipath: IPath::AbEmpty(vec!["/path"],),
                 },
-                query: "".into(),
-                fragment: "".into(),
+                query: "",
+                fragment: "",
             }
         );
         let iri = IRI::try_from("ftp://example.com/path?query=1&param=2#fragment").unwrap();
         assert_eq!(
             iri,
             IRI::IRI {
-                scheme: "ftp".into(),
+                scheme: "ftp",
                 hier_part: IHierPart::AbEmpty {
                     authority: Authority {
                         user_info: None,
-                        host: Host::RegName(Some("example.com".into(),),),
+                        host: Host::RegName(Some("example.com",),),
                         port: None,
                     },
-                    ipath: IPath::AbEmpty(vec!["/path".into()],),
+                    ipath: IPath::AbEmpty(vec!["/path"],),
                 },
-                query: "query=1&param=2".into(),
-                fragment: "fragment".into(),
+                query: "query=1&param=2",
+                fragment: "fragment",
             }
         );
         let iri = IRI::try_from("http://user:pass@example.com:8080/path?q#frag").unwrap();
         assert_eq!(
             iri,
             IRI::IRI {
-                scheme: "http".into(),
+                scheme: "http",
                 hier_part: IHierPart::AbEmpty {
                     authority: Authority {
-                        user_info: Some("user:pass".into()),
-                        host: Host::RegName(Some("example.com".into())),
-                        port: Some("8080".into()),
+                        user_info: Some("user:pass"),
+                        host: Host::RegName(Some("example.com")),
+                        port: Some("8080"),
                     },
-                    ipath: IPath::AbEmpty(vec!["/path".into()],),
+                    ipath: IPath::AbEmpty(vec!["/path"],),
                 },
-                query: "q".into(),
-                fragment: "frag".into(),
+                query: "q",
+                fragment: "frag",
             }
         );
         assert!(IRI::try_from("://example.com").is_err());
@@ -851,11 +834,30 @@ mod test {
             iri,
             IRI::Reference(RelativeRef {
                 relative_part: RelativePart::NoScheme(IPath::NoScheme {
-                    snz_nc: "path".into(),
-                    segments: vec!["/".into(),],
+                    snz_nc: "path",
+                    segments: vec!["/",],
                 },),
-                query: "".into(),
-                fragment: "".into(),
+                query: "",
+                fragment: "",
+            },)
+        );
+        assert_eq!(
+            IRI::try_from("about").unwrap(),
+            IRI::Reference(RelativeRef {
+                relative_part: RelativePart::NoScheme(IPath::NoScheme {
+                    snz_nc: "about",
+                    segments: vec![],
+                },),
+                query: "",
+                fragment: "",
+            },)
+        );
+        assert_eq!(
+            IRI::try_from("").unwrap(),
+            IRI::Reference(RelativeRef {
+                relative_part: RelativePart::Empty(IPath::Empty),
+                query: "",
+                fragment: "",
             },)
         );
     }
