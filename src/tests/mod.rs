@@ -90,6 +90,7 @@ fn cmp_input_file(
         assert_eq!(input.len(), output.len());
     }
 }
+mod iri_test;
 mod triple_common_parser_test_misc;
 mod turtle_doc_test;
 mod turtle_doc_test_misc;
