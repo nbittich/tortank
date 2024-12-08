@@ -166,12 +166,12 @@ pub(crate) mod literal {
     pub(crate) fn string_literal(s: &str) -> ParserResult<Literal> {
         let long_single_quote_literal = delimited(
             tag(STRING_LITERAL_LONG_SINGLE_QUOTE),
-            take_until1(STRING_LITERAL_LONG_SINGLE_QUOTE),
+            take_until(STRING_LITERAL_LONG_SINGLE_QUOTE),
             tag(STRING_LITERAL_LONG_SINGLE_QUOTE),
         );
         let long_quote_literal = delimited(
             tag(STRING_LITERAL_LONG_QUOTE),
-            take_until1(STRING_LITERAL_LONG_QUOTE),
+            take_until(STRING_LITERAL_LONG_QUOTE),
             tag(STRING_LITERAL_LONG_QUOTE),
         );
 
