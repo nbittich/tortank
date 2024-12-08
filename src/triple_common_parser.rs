@@ -125,7 +125,7 @@ pub(crate) mod literal {
     use crate::triple_common_parser::{tag_no_space, Iri, Literal};
     pub(crate) fn parse_boolean<'a>(
         case_sensitive: bool,
-    ) -> impl FnMut(&'a str) -> ParserResult<Literal<'a>> {
+    ) -> impl FnMut(&'a str) -> ParserResult<'a, Literal<'a>> {
         move |s| {
             let extractor = |s| {
                 if case_sensitive {
@@ -406,10 +406,12 @@ pub(crate) fn paren_open(s: &str) -> ParserResult<&str> {
     tag_no_space("(")(s)
 }
 
-pub(crate) fn tag_no_space<'a>(s: &'a str) -> impl FnMut(&'a str) -> ParserResult<&'a str> {
+pub(crate) fn tag_no_space<'a>(s: &'a str) -> impl FnMut(&'a str) -> ParserResult<'a, &'a str> {
     delimited(multispace0, tag(s), multispace0)
 }
 #[allow(unused)]
-pub(crate) fn tag_no_case_no_space<'a>(s: &'a str) -> impl FnMut(&'a str) -> ParserResult<&'a str> {
+pub(crate) fn tag_no_case_no_space<'a>(
+    s: &'a str,
+) -> impl FnMut(&'a str) -> ParserResult<'a, &'a str> {
     delimited(multispace0, tag_no_case(s), multispace0)
 }

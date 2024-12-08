@@ -1,4 +1,3 @@
-
 <http://localhost> <http://mu.semte.ch/vocabularies/ext/metadata> """
 
 
@@ -2009,4 +2008,5 @@ BeslissingArtikel 1: De gemeenteraad neemt akte van de Alternatieve Onde
  <http://data.europa.eu/eli/ontology#title> "Goedkeuring advies en opmerkingen op de Alternatievenonderzoeksnota (AON) Complex Project Viaduct Gentbrugge"^^<http://www.w3.org/2001/XMLSchema#string>;
  <http://data.europa.eu/eli/ontology#has_part> <https://data.destelbergen.be/artikels/2e6e19a7-2e1e-4765-8396-a43c990d3bad> .
 <https://codex.vlaanderen.be/doc/artikel/1382429> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://data.europa.eu/eli/ontology#LegalExpression> .
+
 

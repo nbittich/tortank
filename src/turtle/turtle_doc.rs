@@ -657,7 +657,7 @@ impl<'a> TurtleDoc<'a> {
                 } else {
                     TurtleValue::Collection(nodes)
                 };
-                return Self::get_node(
+                Self::get_node(
                     TurtleValue::Statement {
                         subject: Box::new(subject),
                         predicate_objects: vec![
@@ -673,7 +673,7 @@ impl<'a> TurtleDoc<'a> {
                     },
                     ctx,
                     statements,
-                );
+                )
             }
             TurtleValue::PredicateObject {
                 predicate: _,
@@ -756,8 +756,8 @@ impl<'a> TryFrom<&'a RdfJsonTriple> for Statement<'a> {
     fn try_from(value: &'a RdfJsonTriple) -> Result<Self, Self::Error> {
         fn rjs_to_node(n: &RdfJsonNode) -> Result<Node<'_>, TurtleDocError> {
             match n.typ.as_str() {
-                "uri" => return Ok(Node::Iri(Cow::Borrowed(&n.value))),
-                "bnode" => return Ok(Node::LabeledBlankNode(n.value.to_string())),
+                "uri" => Ok(Node::Iri(Cow::Borrowed(&n.value))),
+                "bnode" => Ok(Node::LabeledBlankNode(n.value.to_string())),
                 "literal" => match &n.datatype {
                     Some(dt) => match dt.as_str() {
                         XSD_DOUBLE => n
@@ -789,7 +789,7 @@ impl<'a> TryFrom<&'a RdfJsonTriple> for Statement<'a> {
                                 message: e.to_string(),
                             }),
                         _ => {
-                            return Ok(Node::Literal(Literal::Quoted {
+                            Ok(Node::Literal(Literal::Quoted {
                                 datatype: Some(Box::new(Node::Iri(Cow::Borrowed(dt)))),
                                 value: Cow::Borrowed(&n.value),
                                 lang: if let Some(lang) = &n.lang {
@@ -801,7 +801,7 @@ impl<'a> TryFrom<&'a RdfJsonTriple> for Statement<'a> {
                         }
                     },
                     None => {
-                        return Ok(Node::Literal(Literal::Quoted {
+                        Ok(Node::Literal(Literal::Quoted {
                             datatype: None,
                             value: Cow::Borrowed(&n.value),
                             lang: if let Some(lang) = &n.lang {
@@ -820,15 +820,15 @@ impl<'a> TryFrom<&'a RdfJsonTriple> for Statement<'a> {
 
         fn rnr_to_node(n: &RdfJsonNodeResult) -> Result<Node<'_>, TurtleDocError> {
             match n {
-                RdfJsonNodeResult::SingleNode(node) => return rjs_to_node(node),
+                RdfJsonNodeResult::SingleNode(node) => rjs_to_node(node),
                 RdfJsonNodeResult::ListNodes(rnr_nodes) => {
                     let mut nodes = vec![];
                     for node in rnr_nodes.iter() {
                         nodes.push(rnr_to_node(node)?);
                     }
-                    return Ok(Node::List(nodes));
+                    Ok(Node::List(nodes))
                 }
-            };
+            }
         }
 
         let stmt = Statement {
@@ -974,7 +974,7 @@ impl<'a> IntoIterator for TurtleDoc<'a> {
     }
 }
 
-impl<'a> PartialEq for Node<'a> {
+impl PartialEq for Node<'_> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Node::Iri(n1), Node::Iri(n2)) => n1.eq(n2),

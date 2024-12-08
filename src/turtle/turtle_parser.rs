@@ -37,9 +37,11 @@ fn object_lists(s: &str) -> ParserResult<TurtleValue> {
     object_list(object, TurtleValue::ObjectList)(s)
 }
 
-fn predicate_lists<'a, F>(subject_extractor: F) -> impl FnMut(&'a str) -> ParserResult<TurtleValue>
+fn predicate_lists<'a, F>(
+    subject_extractor: F,
+) -> impl FnMut(&'a str) -> ParserResult<'a, TurtleValue<'a>>
 where
-    F: Fn(&'a str) -> ParserResult<TurtleValue>,
+    F: Fn(&'a str) -> ParserResult<'a, TurtleValue<'a>>,
 {
     let map_predicate_object = |(predicate, objects)| TurtleValue::PredicateObject {
         predicate: Box::new(predicate),

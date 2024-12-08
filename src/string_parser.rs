@@ -10,14 +10,14 @@ use nom::multi::fold_many0;
 use nom::sequence::{delimited, preceded};
 use nom::IResult;
 
-/// copied from https://github.com/rust-bakery/nom/blob/7.1.3/examples/string.rs
+// copied from https://github.com/rust-bakery/nom/blob/7.1.3/examples/string.rs
 // parser combinators are constructed from the bottom up:
 // first we write parsers for the smallest elements (escaped characters),
 // then combine them into larger parsers.
 
-/// Parse a unicode sequence, of the form u{XXXX}, where XXXX is 1 to 6
-/// hexadecimal numerals. We will combine this later with parse_escaped_char
-/// to parse sequences like \u{00AC}.
+// Parse a unicode sequence, of the form u{XXXX}, where XXXX is 1 to 6
+// hexadecimal numerals. We will combine this later with parse_escaped_char
+// to parse sequences like \u{00AC}.
 fn parse_unicode<'a, E>(input: &'a str) -> IResult<&'a str, char, E>
 where
     E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
