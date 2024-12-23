@@ -233,6 +233,17 @@ impl<'a> TurtleDoc<'a> {
         intersection.try_into()
     }
 
+    pub fn all_subjects(&self) -> Vec<Node<'_>> {
+        let mut subjects = self
+            .statements
+            .iter()
+            .map(|st| st.subject.clone())
+            .collect::<Vec<_>>();
+
+        subjects.dedup();
+        subjects
+    }
+
     pub fn parse_and_list_statements(
         &self,
         subject: Option<String>,
@@ -402,6 +413,8 @@ impl<'a> TurtleDoc<'a> {
                 }
             }
         }
+
+        statements.dedup();
         Ok(TurtleDoc {
             base: context.base,
             well_known_prefix: context.well_known_prefix,
@@ -788,29 +801,25 @@ impl<'a> TryFrom<&'a RdfJsonTriple> for Statement<'a> {
                             .map_err(|e| TurtleDocError {
                                 message: e.to_string(),
                             }),
-                        _ => {
-                            Ok(Node::Literal(Literal::Quoted {
-                                datatype: Some(Box::new(Node::Iri(Cow::Borrowed(dt)))),
-                                value: Cow::Borrowed(&n.value),
-                                lang: if let Some(lang) = &n.lang {
-                                    Some(lang.as_str())
-                                } else {
-                                    None
-                                },
-                            }))
-                        }
-                    },
-                    None => {
-                        Ok(Node::Literal(Literal::Quoted {
-                            datatype: None,
+                        _ => Ok(Node::Literal(Literal::Quoted {
+                            datatype: Some(Box::new(Node::Iri(Cow::Borrowed(dt)))),
                             value: Cow::Borrowed(&n.value),
                             lang: if let Some(lang) = &n.lang {
                                 Some(lang.as_str())
                             } else {
                                 None
                             },
-                        }))
-                    }
+                        })),
+                    },
+                    None => Ok(Node::Literal(Literal::Quoted {
+                        datatype: None,
+                        value: Cow::Borrowed(&n.value),
+                        lang: if let Some(lang) = &n.lang {
+                            Some(lang.as_str())
+                        } else {
+                            None
+                        },
+                    })),
                 },
                 t => Err(TurtleDocError {
                     message: format!("type {t} unknown"),
