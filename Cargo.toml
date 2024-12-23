@@ -12,11 +12,11 @@ repository = "https://github.com/nbittich/tortank"
 [dependencies]
 nom = "7.1.3"
 serde = "1.0.215"
-serde_derive = "1.0.215"
-uuid = { version = "1.11.0", features = ["v4"] }
+serde_derive = "1.0.216"
+uuid = { version = "1.11.0", features = ["v7"] }
 
-serde_json = "1.0.133"
-chrono = "0.4.38"
+serde_json = "1.0.134"
+chrono = "0.4.39"
 
 [profile.release]
 opt-level = 'z'

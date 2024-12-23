@@ -33,7 +33,7 @@ pub(crate) fn reset_fake_uuid_gen() {
 }
 #[cfg(not(test))]
 fn get_uuid() -> String {
-    uuid::Uuid::new_v4().to_string()
+    uuid::Uuid::now_v7().to_string()
 }
 #[cfg(test)]
 fn get_uuid() -> String {
