@@ -1,4 +1,6 @@
-use crate::grammar::{BLANK_NODE_LABEL, STRING_LITERAL_LONG_QUOTE};
+use crate::grammar::{
+    BLANK_NODE_LABEL, STRING_LITERAL_LONG_QUOTE, STRING_LITERAL_LONG_SINGLE_QUOTE,
+};
 use crate::iri::IRI;
 use crate::shared::{
     DATE_FORMATS, DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, DEFAULT_TIME_FORMAT, RDF_FIRST,
@@ -1055,8 +1057,14 @@ impl Display for Node<'_> {
                 lang,
                 value,
             }) => {
-                let mut s =
-                    format!("{STRING_LITERAL_LONG_QUOTE}{value}{STRING_LITERAL_LONG_QUOTE}",);
+                let value = value.replace(STRING_LITERAL_LONG_SINGLE_QUOTE, "\'\'\'");
+                let separator =
+                    if value.ends_with("\"") || value.contains(STRING_LITERAL_LONG_QUOTE) {
+                        STRING_LITERAL_LONG_SINGLE_QUOTE
+                    } else {
+                        STRING_LITERAL_LONG_QUOTE
+                    };
+                let mut s = format!("{separator}{value}{separator}",);
                 if let Some(datatype) = datatype {
                     s.push_str(&format!("^^{datatype}"));
                 } else if let Some(lang) = lang {
