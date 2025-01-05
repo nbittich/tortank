@@ -112,7 +112,7 @@ fn directive(s: &str) -> ParserResult<TurtleValue> {
     alt((base_to_turtle, prefix_to_turtle))(s)
 }
 
-fn statement(s: &str) -> ParserResult<TurtleValue> {
+pub(crate) fn statement(s: &str) -> ParserResult<TurtleValue> {
     preceded(comments, alt((directive, triples)))(s)
 }
 

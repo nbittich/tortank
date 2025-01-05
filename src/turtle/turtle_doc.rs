@@ -10,7 +10,8 @@ use crate::shared::{
 use crate::triple_common_parser::{comments, Literal as ASTLiteral};
 use crate::triple_common_parser::{BlankNode, Iri};
 use crate::turtle::turtle_parser::{
-    object as parse_obj, predicate as parse_pred, statements, subject as parse_sub, TurtleValue,
+    object as parse_obj, predicate as parse_pred, statement, statements, subject as parse_sub,
+    TurtleValue,
 };
 use chrono::{DateTime, FixedOffset};
 use serde_derive::{Deserialize, Serialize};
@@ -244,6 +245,31 @@ impl<'a> TurtleDoc<'a> {
 
         subjects.dedup();
         subjects
+    }
+
+    pub fn parse_ntriples_statement(
+        s: &'a str,
+    ) -> Result<Option<(&'a str, Statement<'a>)>, TurtleDocError> {
+        if s.trim().is_empty() {
+            return Ok(None);
+        }
+        let (rest, stmt) = statement(s).map_err(|e| TurtleDocError {
+            message: e.to_string(),
+        })?;
+        let mut res = Vec::with_capacity(1);
+        Self::get_node(
+            stmt,
+            &Context {
+                base: None,
+                well_known_prefix: None,
+                prefixes: BTreeMap::new(),
+            },
+            &mut res,
+        )?;
+        if res.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some((rest, res.remove(0))))
     }
 
     pub fn parse_and_list_statements(
