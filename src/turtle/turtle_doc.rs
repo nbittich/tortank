@@ -120,6 +120,18 @@ pub struct TurtleDoc<'a> {
     statements: Vec<Statement<'a>>,
 }
 
+impl<'a> Node<'a> {
+    pub fn get_iri(&self) -> Result<&Cow<'a, str>, TurtleDocError> {
+        match self {
+            Node::Iri(cow) => Ok(cow),
+            Node::Ref(node) => node.get_iri(),
+            node => Err(TurtleDocError {
+                message: format!("node is not an iri {node}"),
+            }),
+        }
+    }
+}
+
 impl<'a> Statement<'a> {
     pub fn from_rdf_json_triples(
         triples: &'a [RdfJsonTriple],
