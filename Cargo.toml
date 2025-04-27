@@ -1,7 +1,7 @@
 [package]
 name = "tortank"
 version = "0.25.3"
-edition = "2021"
+edition = "2024"
 authors = ["Nordine Bittich <contact@bittich.be>"]
 description = "Turtle/N3 parser"
 categories = ["database"]

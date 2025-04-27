@@ -12,7 +12,7 @@ use crate::triple_common_parser::prologue::{
 use crate::triple_common_parser::triple::{
     anon_bnode, collection, labeled_bnode, ns_type, object_list, predicate_list,
 };
-use crate::triple_common_parser::{comments, BlankNode, Iri, Literal};
+use crate::triple_common_parser::{BlankNode, Iri, Literal, comments};
 
 #[derive(PartialEq, Debug)]
 pub enum TurtleValue<'a> {

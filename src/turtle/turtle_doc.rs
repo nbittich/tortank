@@ -7,10 +7,10 @@ use crate::shared::{
     RDF_NIL, RDF_REST, TIME_FORMATS, XSD_BOOLEAN, XSD_DATE, XSD_DATE_TIME, XSD_DECIMAL, XSD_DOUBLE,
     XSD_INTEGER, XSD_TIME,
 };
-use crate::triple_common_parser::{comments, Literal as ASTLiteral};
 use crate::triple_common_parser::{BlankNode, Iri};
+use crate::triple_common_parser::{Literal as ASTLiteral, comments};
 use crate::turtle::turtle_parser::{
-    object as parse_obj, predicate as parse_pred, statements, subject as parse_sub, TurtleValue,
+    TurtleValue, object as parse_obj, predicate as parse_pred, statements, subject as parse_sub,
 };
 use chrono::{DateTime, FixedOffset};
 use serde_derive::{Deserialize, Serialize};
@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::fs::{File, OpenOptions};
 use std::io::Read;
-use std::io::{prelude::*, BufReader};
+use std::io::{BufReader, prelude::*};
 use std::num::{ParseFloatError, ParseIntError};
 use std::ops::Add;
 use std::path::PathBuf;

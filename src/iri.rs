@@ -207,8 +207,8 @@ mod parser {
     use crate::prelude::*;
 
     use super::{
+        Authority, Host, IHierPart, IPath, IRI, RelativePart, RelativeRef,
         ip::{parse_ip_v4, parse_ip_v6},
-        Authority, Host, IHierPart, IPath, RelativePart, RelativeRef, IRI,
     };
 
     fn parse_i_query(s: &str) -> ParserResult<&str> {

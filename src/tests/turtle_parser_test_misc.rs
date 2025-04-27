@@ -2,12 +2,12 @@ use std::{borrow::Cow, collections::VecDeque};
 
 use crate::{
     triple_common_parser::{
+        BlankNode, Iri, Literal,
         iri::prefixed_iri,
         prologue::{base_sparql, base_turtle, prefix_sparql, prefix_turtle},
         triple::labeled_bnode,
-        BlankNode, Iri, Literal,
     },
-    turtle::turtle_parser::{statements, triples, TurtleValue},
+    turtle::turtle_parser::{TurtleValue, statements, triples},
 };
 
 #[test]

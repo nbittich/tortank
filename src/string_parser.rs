@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use nom::IResult;
 use nom::branch::alt;
 use nom::bytes::streaming::{is_not, take_while_m_n};
 use nom::character::complete::anychar;
@@ -8,7 +9,6 @@ use nom::combinator::{map, map_opt, map_res, value, verify};
 use nom::error::{FromExternalError, ParseError};
 use nom::multi::fold_many0;
 use nom::sequence::{delimited, preceded};
-use nom::IResult;
 
 // copied from https://github.com/rust-bakery/nom/blob/7.1.3/examples/string.rs
 // parser combinators are constructed from the bottom up:

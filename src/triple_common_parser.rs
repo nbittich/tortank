@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use crate::prelude::{
-    char, delimited, line_ending, many0, multispace0, preceded, tag, tag_no_case, take_until,
-    ParserResult,
+    ParserResult, char, delimited, line_ending, many0, multispace0, preceded, tag, tag_no_case,
+    take_until,
 };
 pub static BASE_TURTLE: &str = "@base";
 pub static BASE_SPARQL: &str = "BASE";
@@ -71,7 +71,7 @@ pub(crate) mod prologue {
     use super::iri::enclosed_iri;
     use crate::prelude::*;
     use crate::triple_common_parser::{
-        Iri, BASE_SPARQL, BASE_TURTLE, PREFIX_SPARQL, PREFIX_TURTLE,
+        BASE_SPARQL, BASE_TURTLE, Iri, PREFIX_SPARQL, PREFIX_TURTLE,
     };
 
     pub(crate) fn base_sparql(s: &str) -> ParserResult<Iri> {
@@ -122,7 +122,7 @@ pub(crate) mod literal {
     use crate::shared::XSD_STRING;
     use crate::string_parser::parse_escaped_string;
     use crate::triple_common_parser::iri::iri;
-    use crate::triple_common_parser::{tag_no_space, Iri, Literal};
+    use crate::triple_common_parser::{Iri, Literal, tag_no_space};
     pub(crate) fn parse_boolean<'a>(
         case_sensitive: bool,
     ) -> impl FnMut(&'a str) -> ParserResult<'a, Literal<'a>> {
@@ -265,7 +265,7 @@ pub(crate) mod triple {
     use crate::grammar::BLANK_NODE_LABEL;
     use crate::prelude::*;
     use crate::shared::NS_TYPE;
-    use crate::triple_common_parser::{comments, paren_close, paren_open, BlankNode, Iri};
+    use crate::triple_common_parser::{BlankNode, Iri, comments, paren_close, paren_open};
 
     use std::collections::VecDeque;
 

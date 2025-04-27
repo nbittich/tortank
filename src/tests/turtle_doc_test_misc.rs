@@ -4,10 +4,10 @@ use crate::{
         Literal, Node, RdfJsonNode, RdfJsonNodeResult, RdfJsonTriple, Statement, TurtleDoc,
     },
 };
-use serial_test::serial;
-use std::{borrow::Cow, sync::Arc};
 use Cow::Borrowed;
 use Node::Iri;
+use serial_test::serial;
+use std::{borrow::Cow, sync::Arc};
 
 #[test]
 #[serial]

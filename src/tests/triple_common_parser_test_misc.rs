@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::triple_common_parser::{iri, literal::string_literal, Iri, Literal};
+use crate::triple_common_parser::{Iri, Literal, iri, literal::string_literal};
 
 #[test]
 fn test_parse_iri_escaped() {

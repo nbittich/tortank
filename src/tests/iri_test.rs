@@ -1,6 +1,6 @@
 use crate::iri::{
+    Authority, Host, IHierPart, IPath, IRI, RelativePart, RelativeRef,
     ip::{parse_ip_v4, parse_ip_v6},
-    Authority, Host, IHierPart, IPath, RelativePart, RelativeRef, IRI,
 };
 
 #[test]
