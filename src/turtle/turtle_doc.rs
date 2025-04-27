@@ -10,8 +10,7 @@ use crate::shared::{
 use crate::triple_common_parser::{comments, Literal as ASTLiteral};
 use crate::triple_common_parser::{BlankNode, Iri};
 use crate::turtle::turtle_parser::{
-    object as parse_obj, predicate as parse_pred, statement, statements, subject as parse_sub,
-    TurtleValue,
+    object as parse_obj, predicate as parse_pred, statements, subject as parse_sub, TurtleValue,
 };
 use chrono::{DateTime, FixedOffset};
 use serde_derive::{Deserialize, Serialize};
@@ -26,6 +25,8 @@ use std::ops::Add;
 use std::path::PathBuf;
 use std::str::ParseBoolError;
 use std::sync::Arc;
+
+use super::turtle_parser::ntriple_statement;
 
 #[cfg(test)]
 static FAKE_UUID_GEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -265,7 +266,7 @@ impl<'a> TurtleDoc<'a> {
         if s.trim().is_empty() {
             return Ok(None);
         }
-        let (rest, stmt) = statement(s).map_err(|e| TurtleDocError {
+        let (rest, stmt) = ntriple_statement(s).map_err(|e| TurtleDocError {
             message: e.to_string(),
         })?;
         let mut res = Vec::with_capacity(1);
@@ -1096,12 +1097,12 @@ impl Display for Node<'_> {
                 value,
             }) => {
                 let value = value.replace(STRING_LITERAL_LONG_SINGLE_QUOTE, "\'\'\'");
-                let separator =
-                    if value.ends_with("\"") || value.contains(STRING_LITERAL_LONG_QUOTE) {
-                        STRING_LITERAL_LONG_SINGLE_QUOTE
-                    } else {
-                        STRING_LITERAL_LONG_QUOTE
-                    };
+                let separator = if value.ends_with('"') || value.contains(STRING_LITERAL_LONG_QUOTE)
+                {
+                    STRING_LITERAL_LONG_SINGLE_QUOTE
+                } else {
+                    STRING_LITERAL_LONG_QUOTE
+                };
                 let mut s = format!("{separator}{value}{separator}",);
                 if let Some(datatype) = datatype {
                     s.push_str(&format!("^^{datatype}"));

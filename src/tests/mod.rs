@@ -1,7 +1,6 @@
 use std::{fs::File, io::BufReader, path::PathBuf, str::FromStr};
 
 use crate::turtle::turtle_doc::{RdfJsonTriple, TurtleDoc};
-
 const DEBUG_TTL: bool = false;
 fn cmp_input_file(
     test_name: &str,

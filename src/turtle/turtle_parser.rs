@@ -106,6 +106,42 @@ pub(crate) fn triples(s: &str) -> ParserResult<TurtleValue> {
     )(s)
 }
 
+pub(crate) fn ntriple_statement(s: &str) -> ParserResult<TurtleValue> {
+    preceded(
+        comments,
+        terminated(
+            map(
+                tuple((ntriple_subject, ntriple_predicate, ntriple_object)),
+                |(s, p, o)| TurtleValue::Statement {
+                    subject: Box::new(s),
+                    predicate_objects: vec![TurtleValue::PredicateObject {
+                        predicate: Box::new(p),
+                        object: Box::new(o),
+                    }],
+                },
+            ),
+            preceded(multispace0, terminated(alt((tag("."), eof)), multispace0)),
+        ),
+    )(s)
+}
+pub(crate) fn ntriple_subject(s: &str) -> ParserResult<TurtleValue> {
+    alt((map(labeled_bnode, TurtleValue::BNode), iri_turtle))(s)
+}
+pub(crate) fn ntriple_predicate(s: &str) -> ParserResult<TurtleValue> {
+    alt((map(ns_type, TurtleValue::Iri), iri_turtle))(s)
+}
+
+pub(crate) fn ntriple_object(s: &str) -> ParserResult<TurtleValue> {
+    preceded(
+        multispace0,
+        alt((
+            iri_turtle,
+            map(labeled_bnode, TurtleValue::BNode),
+            literal_turtle,
+        )),
+    )(s)
+}
+
 fn directive(s: &str) -> ParserResult<TurtleValue> {
     let base_to_turtle = map(alt((base_sparql, base_turtle)), TurtleValue::Base);
     let prefix_to_turtle = map(alt((prefix_turtle, prefix_sparql)), TurtleValue::Prefix);
