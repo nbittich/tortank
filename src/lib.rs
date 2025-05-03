@@ -3,6 +3,9 @@ mod shared;
 mod string_parser;
 mod triple_common_parser;
 pub mod turtle;
+pub mod utils {
+    pub use crate::shared::*;
+}
 pub mod prelude {
     use nom::error::VerboseError;
     pub use nom::{
