@@ -1,5 +1,8 @@
 use std::borrow::Cow;
 
+use nom::Parser;
+use nom_language::error::VerboseError;
+
 use crate::prelude::{
     ParserResult, char, delimited, line_ending, many0, multispace0, preceded, tag, tag_no_case,
     take_until,
@@ -52,10 +55,10 @@ pub(crate) mod iri {
             ),
             |(prefix, local_name)| Iri::Prefixed { prefix, local_name },
         );
-        preceded(multispace0, prefixed)(s)
+        preceded(multispace0, prefixed).parse(s)
     }
     pub(crate) fn iri(s: &str) -> ParserResult<Iri> {
-        alt((prefixed_iri, enclosed_iri))(s)
+        alt((prefixed_iri, enclosed_iri)).parse(s)
     }
     pub(crate) fn enclosed_iri(s: &str) -> ParserResult<Iri> {
         let enclosed = map(
@@ -63,11 +66,13 @@ pub(crate) mod iri {
             Iri::Enclosed,
         );
 
-        preceded(multispace0, enclosed)(s)
+        preceded(multispace0, enclosed).parse(s)
     }
 }
 
 pub(crate) mod prologue {
+    use nom_language::error::VerboseError;
+
     use super::iri::enclosed_iri;
     use crate::prelude::*;
     use crate::triple_common_parser::{
@@ -75,26 +80,27 @@ pub(crate) mod prologue {
     };
 
     pub(crate) fn base_sparql(s: &str) -> ParserResult<Iri> {
-        base(BASE_SPARQL, enclosed_iri)(s)
+        base(BASE_SPARQL, enclosed_iri).parse(s)
     }
     pub(crate) fn base_turtle(s: &str) -> ParserResult<Iri> {
         base(
             BASE_TURTLE,
             terminated(enclosed_iri, preceded(multispace0, char('.'))),
-        )(s)
+        )
+        .parse(s)
     }
     fn base<'a, F>(
         base_tag: &'static str,
         extract_base: F,
-    ) -> impl FnMut(&'a str) -> ParserResult<'a, Iri<'a>>
+    ) -> impl Parser<&'a str, Output = Iri<'a>, Error = VerboseError<&'a str>>
     where
-        F: FnMut(&'a str) -> ParserResult<'a, Iri<'a>>,
+        F: Parser<&'a str, Output = Iri<'a>, Error = VerboseError<&'a str>>,
     {
         preceded(preceded(multispace0, tag_no_case(base_tag)), extract_base)
     }
     fn prefix<'a>(
         prefix_tag: &'static str,
-    ) -> impl FnMut(&'a str) -> ParserResult<'a, (&'a str, Iri<'a>)> {
+    ) -> impl Parser<&'a str, Output = (&'a str, Iri<'a>), Error = VerboseError<&'a str>> {
         preceded(
             preceded(multispace0, tag_no_case(prefix_tag)),
             separated_pair(
@@ -105,10 +111,10 @@ pub(crate) mod prologue {
         )
     }
     pub(crate) fn prefix_turtle(s: &str) -> ParserResult<(&str, Iri<'_>)> {
-        terminated(prefix(PREFIX_TURTLE), preceded(multispace0, char('.')))(s)
+        terminated(prefix(PREFIX_TURTLE), preceded(multispace0, char('.'))).parse(s)
     }
     pub(crate) fn prefix_sparql(s: &str) -> ParserResult<(&str, Iri<'_>)> {
-        prefix(PREFIX_SPARQL)(s)
+        prefix(PREFIX_SPARQL).parse(s)
     }
 }
 pub(crate) mod literal {
@@ -129,9 +135,9 @@ pub(crate) mod literal {
         move |s| {
             let extractor = |s| {
                 if case_sensitive {
-                    alt((tag("true"), tag("false")))(s)
+                    alt((tag("true"), tag("false"))).parse(s)
                 } else {
-                    alt((tag_no_case("true"), tag_no_case("false")))(s)
+                    alt((tag_no_case("true"), tag_no_case("false"))).parse(s)
                 }
             };
             map(
@@ -140,7 +146,8 @@ pub(crate) mod literal {
                     multispace0,
                 ),
                 Literal::Boolean,
-            )(s)
+            )
+            .parse(s)
         }
     }
 
@@ -152,15 +159,16 @@ pub(crate) mod literal {
                 map(all_consuming(float), Literal::Decimal),
                 map(all_consuming(double), Literal::Double),
             )),
-        )(s)
+        )
+        .parse(s)
     }
 
     #[allow(unused)]
     pub(crate) fn primitive_literal_sparql(s: &str) -> ParserResult<Literal> {
-        preceded(multispace0, alt((parse_boolean(false), parse_number)))(s)
+        preceded(multispace0, alt((parse_boolean(false), parse_number))).parse(s)
     }
     pub(crate) fn primitive_literal_turtle(s: &str) -> ParserResult<Literal> {
-        preceded(multispace0, alt((parse_boolean(true), parse_number)))(s)
+        preceded(multispace0, alt((parse_boolean(true), parse_number))).parse(s)
     }
 
     pub(crate) fn string_literal(s: &str) -> ParserResult<Literal> {
@@ -178,7 +186,7 @@ pub(crate) mod literal {
         let mut datatype = preceded(tag("^^"), iri);
 
         fn lang(s: &str) -> ParserResult<&str> {
-            preceded(tag(LANGTAG), take_while(|a: char| a.is_alpha() || a == '-'))(s)
+            preceded(tag(LANGTAG), take_while(|a: char| a.is_alpha() || a == '-')).parse(s)
         }
 
         let (remaining, string_literal) = preceded(
@@ -217,9 +225,10 @@ pub(crate) mod literal {
                     Cow::Borrowed,
                 ),
             )),
-        )(s)?;
+        )
+        .parse(s)?;
 
-        if let Ok((remaining, datatype)) = datatype(remaining) {
+        if let Ok((remaining, datatype)) = datatype.parse(remaining) {
             Ok((
                 remaining,
                 Literal::Quoted {
@@ -250,17 +259,18 @@ pub(crate) mod literal {
     }
 
     pub(crate) fn literal_turtle(s: &str) -> ParserResult<Literal> {
-        alt((string_literal, primitive_literal_turtle))(s)
+        alt((string_literal, primitive_literal_turtle)).parse(s)
     }
 
     #[allow(unused)]
     pub(crate) fn literal_sparql(s: &str) -> ParserResult<Literal> {
-        alt((string_literal, primitive_literal_sparql))(s)
+        alt((string_literal, primitive_literal_sparql)).parse(s)
     }
 }
 pub(crate) mod triple {
 
-    use nom::error::{ParseError, VerboseError};
+    use nom::error::ParseError;
+    use nom_language::error::VerboseError;
 
     use crate::grammar::BLANK_NODE_LABEL;
     use crate::prelude::*;
@@ -272,7 +282,7 @@ pub(crate) mod triple {
     pub(crate) fn object_list<'a, F1, F2, T>(
         object_extractor: F1,
         mut map_list: F2,
-    ) -> impl FnMut(&'a str) -> ParserResult<'a, T>
+    ) -> impl Parser<&'a str, Output = T, Error = VerboseError<&'a str>>
     where
         F1: FnMut(&'a str) -> ParserResult<'a, T>,
         F2: FnMut(Vec<T>) -> T,
@@ -295,7 +305,8 @@ pub(crate) mod triple {
         map(
             preceded(multispace0, terminated(char('a'), multispace1)),
             |_| Iri::Enclosed(NS_TYPE),
-        )(s)
+        )
+        .parse(s)
     }
     pub(crate) fn predicate_list<'a, F1, F2, F3, F4, F5, T>(
         subject_extractor: F1,
@@ -303,7 +314,7 @@ pub(crate) mod triple {
         object_list_extractor: F3,
         map_predicate_object: F4,
         map_statement: F5,
-    ) -> impl FnMut(&'a str) -> ParserResult<'a, T>
+    ) -> impl Parser<&'a str, Output = T, Error = VerboseError<&'a str>>
     where
         F1: Fn(&'a str) -> ParserResult<'a, T>,
         F2: Fn(&'a str) -> ParserResult<'a, T>,
@@ -330,7 +341,7 @@ pub(crate) mod triple {
     }
     pub(crate) fn collection<'a, T, F>(
         object_extractor: F,
-    ) -> impl FnMut(&'a str) -> ParserResult<'a, VecDeque<T>>
+    ) -> impl Parser<&'a str, Output = VecDeque<T>, Error = VerboseError<&'a str>>
     where
         F: Fn(&'a str) -> ParserResult<'a, T>,
     {
@@ -345,9 +356,11 @@ pub(crate) mod triple {
             VecDeque::from,
         )
     }
-    pub(crate) fn anon_bnode<'a, F, T>(anon_parser: F) -> impl FnMut(&'a str) -> ParserResult<'a, T>
+    pub(crate) fn anon_bnode<'a, F, T>(
+        anon_parser: F,
+    ) -> impl Parser<&'a str, Output = T, Error = VerboseError<&'a str>>
     where
-        F: FnMut(&'a str) -> ParserResult<'a, T>,
+        F: Parser<&'a str, Output = T, Error = VerboseError<&'a str>>,
     {
         preceded(
             multispace0,
@@ -362,7 +375,7 @@ pub(crate) mod triple {
         fn allowed_but_not_as_first(c: char) -> bool {
             matches!(c,'.' | '-' | '·' | '\u{0300}'..='\u{036F}' | '\u{203F}'..='\u{2040}')
         }
-        let (s, _) = preceded(multispace0, tag(BLANK_NODE_LABEL))(s)?;
+        let (s, _) = preceded(multispace0, tag(BLANK_NODE_LABEL)).parse(s)?;
         let mut idx_bnode = 0;
         for c in s.chars() {
             if c.is_alphanum() || c == '_' || allowed_but_not_as_first(c) {
@@ -396,22 +409,25 @@ pub(crate) fn comments(s: &str) -> ParserResult<Vec<&str>> {
         multispace0,
         preceded(char('#'), take_until("\n")),
         line_ending,
-    ))(s)
+    ))
+    .parse(s)
 }
 
 pub(crate) fn paren_close(s: &str) -> ParserResult<&str> {
-    preceded(multispace0, tag(")"))(s)
+    preceded(multispace0, tag(")")).parse(s)
 }
 pub(crate) fn paren_open(s: &str) -> ParserResult<&str> {
-    tag_no_space("(")(s)
+    tag_no_space("(").parse(s)
 }
 
-pub(crate) fn tag_no_space<'a>(s: &'a str) -> impl FnMut(&'a str) -> ParserResult<'a, &'a str> {
+pub(crate) fn tag_no_space(
+    s: &str,
+) -> impl Parser<&str, Output = &str, Error = VerboseError<&str>> {
     delimited(multispace0, tag(s), multispace0)
 }
 #[allow(unused)]
-pub(crate) fn tag_no_case_no_space<'a>(
-    s: &'a str,
-) -> impl FnMut(&'a str) -> ParserResult<'a, &'a str> {
+pub(crate) fn tag_no_case_no_space(
+    s: &str,
+) -> impl Parser<&str, Output = &str, Error = VerboseError<&str>> {
     delimited(multispace0, tag_no_case(s), multispace0)
 }

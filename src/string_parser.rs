@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-use nom::IResult;
 use nom::branch::alt;
 use nom::bytes::streaming::{is_not, take_while_m_n};
 use nom::character::complete::anychar;
@@ -9,6 +8,7 @@ use nom::combinator::{map, map_opt, map_res, value, verify};
 use nom::error::{FromExternalError, ParseError};
 use nom::multi::fold_many0;
 use nom::sequence::{delimited, preceded};
+use nom::{IResult, Parser};
 
 // copied from https://github.com/rust-bakery/nom/blob/7.1.3/examples/string.rs
 // parser combinators are constructed from the bottom up:
@@ -45,7 +45,7 @@ where
     // the function returns None, map_opt returns an error. In this case, because
     // not all u32 values are valid unicode code points, we have to fallibly
     // convert to char with from_u32.
-    map_opt(parse_u32, std::char::from_u32)(input)
+    map_opt(parse_u32, std::char::from_u32).parse(input)
 }
 
 /// Parse an escaped character: \n, \t, \r, \u{00AC}, etc.
@@ -72,7 +72,8 @@ where
             value('/', char('/')),
             value('"', char('"')),
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 /// Parse a backslash, followed by any amount of whitespace. This is used later
@@ -80,10 +81,10 @@ where
 fn parse_escaped_whitespace<'a, E: ParseError<&'a str>>(
     input: &'a str,
 ) -> IResult<&'a str, &'a str, E> {
-    preceded(char('\\'), multispace1)(input)
+    preceded(char('\\'), multispace1).parse(input)
 }
 fn parse_escaped_anychar<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, char, E> {
-    preceded(char('\\'), anychar)(input)
+    preceded(char('\\'), anychar).parse(input)
 }
 
 /// Parse a non-empty block of text that doesn't include \ or "
@@ -96,7 +97,7 @@ fn parse_literal<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str,
     // the parser. The verification function accepts out output only if it
     // returns true. In this case, we want to ensure that the output of is_not
     // is non-empty.
-    verify(not_quote_slash, |s: &str| !s.is_empty())(input)
+    verify(not_quote_slash, |s: &str| !s.is_empty()).parse(input)
 }
 
 /// A string fragment contains a fragment of a string being parsed: either
@@ -123,7 +124,8 @@ where
         map(parse_escaped_char, StringFragment::EscapedChar),
         value(StringFragment::EscapedWS, parse_escaped_whitespace),
         map(parse_escaped_anychar, StringFragment::EscapedAnychar),
-    ))(input)
+    ))
+    .parse(input)
 }
 
 /// Parse a string. Use a loop of parse_fragment and push all of the fragments
@@ -162,14 +164,14 @@ where
     // `delimited` with a looping parser (like fold_many0), be sure that the
     // loop won't accidentally match your closing delimiter!
 
-    map(build_string(), Cow::Owned)(input)
+    map(build_string(), Cow::Owned).parse(input)
 }
 
 #[cfg(test)]
 mod test {
     use std::borrow::Cow;
 
-    use nom::{bytes::complete::tag, sequence::delimited};
+    use nom::{Parser, bytes::complete::tag, sequence::delimited};
 
     use crate::prelude::ParserResult;
 
@@ -194,7 +196,7 @@ mod test {
             + "You can add as much text as needed here.";
 
         let v: ParserResult<Cow<'_, str>> =
-            delimited(tag("\""), parse_escaped_string, tag("\""))(&input);
+            delimited(tag("\""), parse_escaped_string, tag("\"")).parse(&input);
         let (_, res) = v.unwrap();
         assert_eq!(res, expected);
     }
