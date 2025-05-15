@@ -36,6 +36,7 @@ const INPUT_DIR: &str = "examples/turtle_doc";
 #[test_case("0029", None          , false  ; "EQ: Simple base example")]
 #[test_case("0030", None          , false  ; "EQ: empty STRING_LITERAL_LONG_QUOTE")]
 #[test_case("0031", None          , false  ; "EQ: alt quotes")]
+#[test_case("0032", None          , false ; "EQ: test dateTime 2025-04-15T12:00:00Z")]
 #[serial]
 fn test_turtle_doc(test_name: &str, diff_file: Option<&str>, output_json: bool) {
     reset_fake_uuid_gen();

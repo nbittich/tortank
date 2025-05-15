@@ -1,0 +1,5 @@
+
+            @prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+            @prefix test: <http://example.org/>.
+            
+            test:Date test:date "2025-04-15T12:00:00Z"^^xsd:dateTime.

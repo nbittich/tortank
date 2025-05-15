@@ -556,7 +556,8 @@ impl<'a> TurtleDoc<'a> {
 
                             let date = DATE_FORMATS
                                 .iter()
-                                .find_map(|f| parse_from_str(&value, f).ok());
+                                .find_map(|f| parse_from_str(&value, f).ok())
+                                .or_else(|| DateTime::parse_from_rfc3339(&value).ok());
 
                             if let Some(date) = date {
                                 Ok(Node::Literal(Literal::Date(date)))
