@@ -14,9 +14,10 @@ pub const RDF_FIRST: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#first";
 pub const RDF_REST: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest";
 #[allow(unused)]
 pub const DEFAULT_WELL_KNOWN_PREFIX: &str = "http://example.org/.well-known/genid#";
-pub static DATE_FORMATS: [&str; 9] = [
+pub static DATE_FORMATS: [&str; 11] = [
     "%Y-%m-%dT%H:%M:%S%.3f%Z",
     "%Y-%m-%dT%H:%M:%S%Z",
+    "%Y-%m-%dT%H:%M:%S%:z",
     "%Y-%m-%d%:z",
     "%Y-%m-%d",
     "%d-%m-%Y",
@@ -24,6 +25,7 @@ pub static DATE_FORMATS: [&str; 9] = [
     "%m-%d-%Y",
     "%m/%d/%Y",
     "%d/%m/%Y",
+    "%+",
 ];
 pub static TIME_FORMATS: [&str; 4] = ["%H:%M:%S%.3f%Z", "%H:%M:%S%Z", "%H:%M:%S", "%H:%M"];
 pub const DEFAULT_DATE_TIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.3f%Z";
