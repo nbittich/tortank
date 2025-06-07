@@ -12,7 +12,7 @@ use crate::triple_common_parser::{Literal as ASTLiteral, comments};
 use crate::turtle::turtle_parser::{
     TurtleValue, object as parse_obj, predicate as parse_pred, statements, subject as parse_sub,
 };
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, FixedOffset, Local, NaiveDateTime};
 use serde_derive::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -553,11 +553,22 @@ impl<'a> TurtleDoc<'a> {
                         }
                         Some(Node::Iri(ref iri)) if iri == XSD_DATE => {
                             let parse_from_str = DateTime::parse_from_str;
+                            let parse_from_str_no_tz = NaiveDateTime::parse_from_str;
 
                             let date = DATE_FORMATS
                                 .iter()
                                 .find_map(|f| parse_from_str(&value, f).ok())
-                                .or_else(|| DateTime::parse_from_rfc3339(&value).ok());
+                                .or_else(|| DateTime::parse_from_rfc3339(&value).ok())
+                                .or_else(|| {
+                                    DATE_FORMATS
+                                        .iter()
+                                        .find_map(|f| parse_from_str_no_tz(&value, f).ok())
+                                        .and_then(|f| {
+                                            f.and_local_timezone(Local::now().timezone())
+                                                .map(|f| f.fixed_offset())
+                                                .latest()
+                                        })
+                                });
 
                             if let Some(date) = date {
                                 Ok(Node::Literal(Literal::Date(date)))
