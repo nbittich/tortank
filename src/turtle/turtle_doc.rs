@@ -3,19 +3,19 @@ use crate::grammar::{
 };
 use crate::iri::IRI;
 use crate::shared::{
-    DATE_FORMATS, DEFAULT_DATE_FORMAT, DEFAULT_DATE_TIME_FORMAT, DEFAULT_TIME_FORMAT, RDF_FIRST,
-    RDF_NIL, RDF_REST, TIME_FORMATS, XSD_BOOLEAN, XSD_DATE, XSD_DATE_TIME, XSD_DECIMAL, XSD_DOUBLE,
-    XSD_INTEGER, XSD_TIME,
+    DATE_FORMATS, DEFAULT_DATE_FORMAT, DEFAULT_TIME_FORMAT, RDF_FIRST, RDF_NIL, RDF_REST,
+    TIME_FORMATS, XSD_BOOLEAN, XSD_DATE, XSD_DATE_TIME, XSD_DECIMAL, XSD_DOUBLE, XSD_INTEGER,
+    XSD_TIME,
 };
 use crate::triple_common_parser::{BlankNode, Iri};
 use crate::triple_common_parser::{Literal as ASTLiteral, comments};
 use crate::turtle::turtle_parser::{
     TurtleValue, object as parse_obj, predicate as parse_pred, statements, subject as parse_sub,
 };
-use chrono::{DateTime, FixedOffset, Local, NaiveDateTime};
+use chrono::{DateTime, FixedOffset, Local, NaiveDateTime, SecondsFormat};
 use serde_derive::{Deserialize, Serialize};
 use std::borrow::Cow;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
 use std::fs::{File, OpenOptions};
 use std::io::Read;
@@ -35,6 +35,7 @@ static FAKE_UUID_GEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU6
 pub(crate) fn reset_fake_uuid_gen() {
     FAKE_UUID_GEN.store(0, std::sync::atomic::Ordering::SeqCst);
 }
+
 #[cfg(not(test))]
 fn get_uuid() -> String {
     uuid::Uuid::now_v7().to_string()
@@ -47,6 +48,37 @@ fn get_uuid() -> String {
         FAKE_UUID_GEN.load(std::sync::atomic::Ordering::SeqCst)
     )
 }
+
+const PREFIXES: &[(&str, &str)] = &[
+    ("rdf:", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"),
+    ("org:", "http://www.w3.org/ns/org#"),
+    ("rdfs:", "http://www.w3.org/2000/01/rdf-schema#"),
+    ("xsd:", "http://www.w3.org/2001/XMLSchema#"),
+    ("foaf:", "http://xmlns.com/foaf/0.1/"),
+    ("dc:", "http://purl.org/dc/elements/1.1/"),
+    ("dcterms:", "http://purl.org/dc/terms/"),
+    ("skos:", "http://www.w3.org/2004/02/skos/core#"),
+    ("prov:", "http://www.w3.org/ns/prov#"),
+    ("schema:", "http://schema.org/"),
+    ("dcat:", "http://www.w3.org/ns/dcat#"),
+    ("adms:", "http://www.w3.org/ns/adms#"),
+    ("mu:", "http://mu.semte.ch/vocabularies/core/"),
+    ("besluit:", "http://data.vlaanderen.be/ns/besluit#"),
+    ("mandaat:", "http://data.vlaanderen.be/ns/mandaat#"),
+    ("eli:", "http://data.europa.eu/eli/ontology#"),
+    ("euvoc:", "http://publications.europa.eu/ontology/euvoc#"),
+    ("mobiliteit:", "https://data.vlaanderen.be/ns/mobiliteit#"),
+    ("ldes:", "http://w3id.org/ldes#"),
+];
+const PREFIX_OR_NONE: fn(&str) -> Option<String> = |s| {
+    PREFIXES.iter().find_map(|(p, uri)| {
+        if s.contains(uri) {
+            Some(s.replace(uri, p))
+        } else {
+            None
+        }
+    })
+};
 
 #[derive(PartialEq, Debug)]
 pub struct TurtleDocError {
@@ -601,9 +633,21 @@ impl<'a> TurtleDoc<'a> {
                         Some(Node::Iri(ref iri)) if iri == XSD_DATE_TIME => {
                             let parse_from_str = DateTime::parse_from_str;
 
+                            let parse_from_str_no_tz = NaiveDateTime::parse_from_str;
                             let date = DATE_FORMATS
                                 .iter()
-                                .find_map(|f| parse_from_str(&value, f).ok());
+                                .find_map(|f| parse_from_str(&value, f).ok())
+                                .or_else(|| DateTime::parse_from_rfc3339(&value).ok())
+                                .or_else(|| {
+                                    DATE_FORMATS
+                                        .iter()
+                                        .find_map(|f| parse_from_str_no_tz(&value, f).ok())
+                                        .and_then(|f| {
+                                            f.and_local_timezone(Local::now().timezone())
+                                                .map(|f| f.fixed_offset())
+                                                .latest()
+                                        })
+                                });
 
                             if let Some(date) = date {
                                 Ok(Node::Literal(Literal::DateTime(date)))
@@ -1138,12 +1182,14 @@ impl Display for Node<'_> {
             Node::Literal(Literal::Date(d)) => {
                 write!(f, r#""{}"^^<{}>"#, d.format(DEFAULT_DATE_FORMAT), XSD_DATE)
             }
-            Node::Literal(Literal::DateTime(d)) => write!(
-                f,
-                r#""{}"^^<{}>"#,
-                d.format(DEFAULT_DATE_TIME_FORMAT),
-                XSD_DATE_TIME
-            ),
+            Node::Literal(Literal::DateTime(d)) => {
+                write!(
+                    f,
+                    r#""{}"^^<{}>"#,
+                    d.to_rfc3339_opts(SecondsFormat::Millis, true),
+                    XSD_DATE_TIME
+                )
+            }
             Node::Literal(Literal::Time(d)) => {
                 write!(f, r#""{}"^^<{}>"#, d.format(DEFAULT_TIME_FORMAT), XSD_TIME)
             }
@@ -1182,5 +1228,48 @@ impl Display for TurtleDoc<'_> {
 impl Display for TurtleDocError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "error: {}", self.message)
+    }
+}
+
+impl TurtleDoc<'_> {
+    pub fn as_turtle(&self) -> Result<String, TurtleDocError> {
+        let mut turtle_map = HashMap::new();
+        for Statement {
+            subject,
+            predicate,
+            object,
+        } in self.statements.iter()
+        {
+            let resource = turtle_map
+                .entry(subject.get_iri()?)
+                .or_insert_with(|| HashMap::<String, Vec<String>>::new());
+            let predicate = {
+                let predicate = predicate.get_iri()?;
+                PREFIX_OR_NONE(predicate).unwrap_or_else(|| format!("<{predicate}>"))
+            };
+            let predicate_array = resource.entry(predicate).or_default();
+            predicate_array.push(object.to_string());
+        }
+
+        Ok(PREFIXES
+            .iter()
+            .map(|(k, v)| format!("@prefix {k} <{v}>."))
+            .collect::<Vec<_>>()
+            .join("\n")
+            + "\n"
+            + &turtle_map
+                .into_iter()
+                .map(|(uri, predicates)| {
+                    format!(
+                        "<{uri}> {}.",
+                        predicates
+                            .iter()
+                            .map(|(p, o)| format!("\t{p} {}", o.join(", ")))
+                            .collect::<Vec<_>>()
+                            .join(";\n")
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n"))
     }
 }
