@@ -1316,7 +1316,6 @@ impl TurtleDoc<'_> {
                     Literal::Time(_) => object_str
                         .replace(&format!("^^<{XSD_TIME}>"), "^^xsd:time")
                         .to_string(),
-                    _ => object_str,
                 },
                 _ => object_str,
             };
