@@ -50,12 +50,13 @@ fn get_uuid() -> String {
     )
 }
 const SPECIAL_TTL_RDF_TYPE_PREFIX: (&str, &str) = ("rdf:type", "a");
-
+const PREFIX_XSD: (&str, &str) = ("xsd:", "http://www.w3.org/2001/XMLSchema#");
+const XSD_DATATYPE_FN: fn(&str) -> String = |s| format!("^^xsd:{s}");
 const PREFIXES: &[(&str, &str)] = &[
     ("rdf:", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"),
     ("org:", "http://www.w3.org/ns/org#"),
     ("rdfs:", "http://www.w3.org/2000/01/rdf-schema#"),
-    ("xsd:", "http://www.w3.org/2001/XMLSchema#"),
+    PREFIX_XSD,
     ("foaf:", "http://xmlns.com/foaf/0.1/"),
     ("dc:", "http://purl.org/dc/elements/1.1/"),
     ("dcterms:", "http://purl.org/dc/terms/"),
@@ -64,6 +65,16 @@ const PREFIXES: &[(&str, &str)] = &[
     ("schema:", "http://schema.org/"),
     ("dcat:", "http://www.w3.org/ns/dcat#"),
     ("adms:", "http://www.w3.org/ns/adms#"),
+    ("tree:", "https://w3id.org/tree#"),
+    ("qunit:","http://qudt.org/vocab/unit/"),
+    ("quantitykind:","http://qudt.org/vocab/quantitykind/"),
+    ("vs:", "http://www.w3.org/2003/06/sw-vocab-status/ns#"),
+    ("tribont:","https://w3id.org/tribont/core#"),
+    (
+        "conceptscheme:",
+        "http://data.vlaanderen.be/id/conceptscheme/",
+    ),
+    ("cidoc:", "http://www.cidoc-crm.org/cidoc-crm/"),
     ("mu:", "http://mu.semte.ch/vocabularies/core/"),
     ("besluit:", "http://data.vlaanderen.be/ns/besluit#"),
     ("mandaat:", "http://data.vlaanderen.be/ns/mandaat#"),
@@ -87,12 +98,16 @@ const PREFIXES: &[(&str, &str)] = &[
     ("ex:", "http://example.org/"),
     ("bibo:", "http://purl.org/ontology/bibo/"),
     ("obo:", "http://purl.obolibrary.org/obo/"),
+    ("ext:", "http://mu.semte.ch/vocabularies/ext/"),
     ("qudt:", "http://qudt.org/schema/qudt/"),
     ("geo:", "<http://www.opengis.net/ont/geosparql#>"),
 ];
 const PREFIX_OR_NONE: fn(&str, &mut HashMap<&'static str, &'static str>) -> Option<String> =
     |s, used_prefixes| {
-        PREFIXES.iter().find_map(|(p, uri)| {
+        let mut prefixes: Vec<_>  = PREFIXES.into_iter().collect();
+        prefixes.sort_by(|a, b| b.1.len().cmp(&a.1.len())); // prevent prefix collisions
+
+        prefixes.iter().find_map(|(p, uri)| {
             if s.contains(uri) {
                 used_prefixes.insert(p, uri);
                 let replaced = s.replace(uri, p);
@@ -1259,9 +1274,61 @@ impl Display for TurtleDocError {
 }
 
 impl TurtleDoc<'_> {
+    fn object_to_turtle(
+        object: &Node,
+        used_prefixes: &mut HashMap<&'static str, &'static str>,
+    ) -> String {
+        match object {
+            Node::Iri(object_str) => {
+                PREFIX_OR_NONE(object_str, used_prefixes).unwrap_or(format!("<{object_str}>"))
+            }
+            Node::Literal(literal) => {
+                let object_str = object.to_string();
+                match literal {
+                    Literal::Quoted { datatype, .. } => {
+                        if let Some(datatype) = datatype
+                            && datatype.as_ref() == &Node::Iri(Cow::Borrowed(XSD_STRING))
+                        {
+                            object_str.replace(&format!("^^<{XSD_STRING}>"), "")
+                        } else {
+                            object_str
+                        }
+                    }
+                    Literal::Double(_) => {
+                        object_str.replace(&format!("^^<{XSD_DOUBLE}>"), &XSD_DATATYPE_FN("double"))
+                    }
+                    Literal::Decimal(_) => object_str
+                        .replace(&format!("^^<{XSD_DECIMAL}>"), &XSD_DATATYPE_FN("decimal")),
+                    Literal::Integer(v) => {
+                        format!("{v}")
+                    }
+                    Literal::Boolean(b) => {
+                        if *b {
+                            "true".to_string()
+                        } else {
+                            "false".to_string()
+                        }
+                    }
+                    Literal::Date(_) => {
+                        object_str.replace(&format!("^^<{XSD_DATE}>"), &XSD_DATATYPE_FN("date"))
+                    }
+                    Literal::DateTime(_) => object_str.replace(
+                        &format!("^^<{XSD_DATE_TIME}>"),
+                        &XSD_DATATYPE_FN("dateTime"),
+                    ),
+                    Literal::Time(_) => {
+                        object_str.replace(&format!("^^<{XSD_TIME}>"), &XSD_DATATYPE_FN("time"))
+                    }
+                }
+            }
+
+            Node::Ref(r) => Self::object_to_turtle(r.as_ref(), used_prefixes),
+            _ => object.to_string(),
+        }
+    }
     pub fn as_turtle(&self) -> Result<String, TurtleDocError> {
         let mut turtle_map = HashMap::new();
-        let mut used_prefixes = HashMap::with_capacity(PREFIXES.len());
+        let mut used_prefixes = HashMap::from([PREFIX_XSD]);
 
         for Statement {
             subject,
@@ -1278,46 +1345,7 @@ impl TurtleDoc<'_> {
                     .unwrap_or_else(|| format!("<{predicate}>"))
             };
             let predicate_array = resource.entry(predicate).or_default();
-            let object = match object {
-                Node::Iri(object_str) => PREFIX_OR_NONE(object_str, &mut used_prefixes)
-                    .unwrap_or(format!("<{object_str}>")),
-                Node::Literal(literal) => {
-                    let object_str = object.to_string();
-                    match literal {
-                        Literal::Quoted { datatype, .. } => {
-                            if let Some(datatype) = datatype
-                                && datatype.as_ref() == &Node::Iri(Cow::Borrowed(XSD_STRING))
-                            {
-                                object_str.replace(&format!("^^<{XSD_STRING}>"), "")
-                            } else {
-                                object_str
-                            }
-                        }
-                        Literal::Double(_) => {
-                            object_str.replace(&format!("^^<{XSD_DOUBLE}>"), "^^xsd:double")
-                        }
-                        Literal::Decimal(_) => {
-                            object_str.replace(&format!("^^<{XSD_DECIMAL}>"), "^^xsd:decimal")
-                        }
-                        Literal::Integer(_) => {
-                            object_str.replace(&format!("^^<{XSD_INTEGER}>"), "^^xsd:integer")
-                        }
-                        Literal::Boolean(_) => {
-                            object_str.replace(&format!("^^<{XSD_BOOLEAN}>"), "^^xsd:boolean")
-                        }
-                        Literal::Date(_) => {
-                            object_str.replace(&format!("^^<{XSD_DATE}>"), "^^xsd:date")
-                        }
-                        Literal::DateTime(_) => {
-                            object_str.replace(&format!("^^<{XSD_DATE_TIME}>"), "^^xsd:dateTime")
-                        }
-                        Literal::Time(_) => {
-                            object_str.replace(&format!("^^<{XSD_TIME}>"), "^^xsd:time")
-                        }
-                    }
-                }
-                _ => object.to_string(),
-            };
+            let object = Self::object_to_turtle(object, &mut used_prefixes);
             predicate_array.push(object.to_string());
         }
 
@@ -1326,7 +1354,7 @@ impl TurtleDoc<'_> {
             .map(|(k, v)| format!("@prefix {k} <{v}>."))
             .collect::<Vec<_>>()
             .join("\n")
-            + "\n"
+            + "\n\n"
             + &turtle_map
                 .into_iter()
                 .map(|(subject, predicates)| {
@@ -1338,13 +1366,16 @@ impl TurtleDoc<'_> {
                             .map(|(idx, (p, o))| format!(
                                 "{}{p} {}",
                                 if idx == 0 { "" } else { "\t" },
-                                o.join(", ")
+                                o.chunks(2)
+                                    .map(|n| n.join(", "))
+                                    .collect::<Vec<_>>()
+                                    .join(&format!(",\n\t\t{}", if idx == 0 { "" } else { "\t" }))
                             ))
                             .collect::<Vec<_>>()
                             .join(";\n")
                     )
                 })
                 .collect::<Vec<_>>()
-                .join("\n"))
+                .join("\n\n"))
     }
 }

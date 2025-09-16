@@ -154,5 +154,5 @@ fn test_as_turtle_basic() {
     "#;
     let doc = TurtleDoc::try_from((r, None as Option<String>)).unwrap();
     let turtle = doc.as_turtle().unwrap();
-    println!("{turtle}")
+    println!("FIXME: make it a proper test!\n{turtle}")
 }
