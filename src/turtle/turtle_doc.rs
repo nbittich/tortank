@@ -66,10 +66,10 @@ const PREFIXES: &[(&str, &str)] = &[
     ("dcat:", "http://www.w3.org/ns/dcat#"),
     ("adms:", "http://www.w3.org/ns/adms#"),
     ("tree:", "https://w3id.org/tree#"),
-    ("qunit:","http://qudt.org/vocab/unit/"),
-    ("quantitykind:","http://qudt.org/vocab/quantitykind/"),
+    ("qunit:", "http://qudt.org/vocab/unit/"),
+    ("quantitykind:", "http://qudt.org/vocab/quantitykind/"),
     ("vs:", "http://www.w3.org/2003/06/sw-vocab-status/ns#"),
-    ("tribont:","https://w3id.org/tribont/core#"),
+    ("tribont:", "https://w3id.org/tribont/core#"),
     (
         "conceptscheme:",
         "http://data.vlaanderen.be/id/conceptscheme/",
@@ -104,8 +104,8 @@ const PREFIXES: &[(&str, &str)] = &[
 ];
 const PREFIX_OR_NONE: fn(&str, &mut HashMap<&'static str, &'static str>) -> Option<String> =
     |s, used_prefixes| {
-        let mut prefixes: Vec<_>  = PREFIXES.into_iter().collect();
-        prefixes.sort_by(|a, b| b.1.len().cmp(&a.1.len())); // prevent prefix collisions
+        let mut prefixes: Vec<_> = PREFIXES.iter().collect();
+        prefixes.sort_by(|(_, a), (_, b)| b.len().cmp(&a.len())); // prevent prefix collisions
 
         prefixes.iter().find_map(|(p, uri)| {
             if s.contains(uri) {
