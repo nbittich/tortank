@@ -43,7 +43,7 @@ pub(crate) mod iri {
     use crate::triple_common_parser::Iri;
     use nom::bytes::complete::escaped;
     use nom::character::complete::one_of;
-    pub(crate) fn prefixed_iri(s: &str) -> ParserResult<Iri> {
+    pub(crate) fn prefixed_iri(s: &'_ str) -> ParserResult<'_, Iri<'_>> {
         let prefixed = map(
             separated_pair(
                 take_while(|s: char| s.is_alphanumeric()),
@@ -57,10 +57,10 @@ pub(crate) mod iri {
         );
         preceded(multispace0, prefixed).parse(s)
     }
-    pub(crate) fn iri(s: &str) -> ParserResult<Iri> {
+    pub(crate) fn iri(s: &'_ str) -> ParserResult<'_, Iri<'_>> {
         alt((prefixed_iri, enclosed_iri)).parse(s)
     }
-    pub(crate) fn enclosed_iri(s: &str) -> ParserResult<Iri> {
+    pub(crate) fn enclosed_iri(s: &'_ str) -> ParserResult<'_, Iri<'_>> {
         let enclosed = map(
             delimited(char('<'), take_while(|s: char| s != '>'), char('>')),
             Iri::Enclosed,
@@ -79,10 +79,10 @@ pub(crate) mod prologue {
         BASE_SPARQL, BASE_TURTLE, Iri, PREFIX_SPARQL, PREFIX_TURTLE,
     };
 
-    pub(crate) fn base_sparql(s: &str) -> ParserResult<Iri> {
+    pub(crate) fn base_sparql(s: &'_ str) -> ParserResult<'_, Iri<'_>> {
         base(BASE_SPARQL, enclosed_iri).parse(s)
     }
-    pub(crate) fn base_turtle(s: &str) -> ParserResult<Iri> {
+    pub(crate) fn base_turtle(s: &'_ str) -> ParserResult<'_, Iri<'_>> {
         base(
             BASE_TURTLE,
             terminated(enclosed_iri, preceded(multispace0, char('.'))),
@@ -110,10 +110,10 @@ pub(crate) mod prologue {
             ),
         )
     }
-    pub(crate) fn prefix_turtle(s: &str) -> ParserResult<(&str, Iri<'_>)> {
+    pub(crate) fn prefix_turtle(s: &'_ str) -> ParserResult<'_, (&str, Iri<'_>)> {
         terminated(prefix(PREFIX_TURTLE), preceded(multispace0, char('.'))).parse(s)
     }
-    pub(crate) fn prefix_sparql(s: &str) -> ParserResult<(&str, Iri<'_>)> {
+    pub(crate) fn prefix_sparql(s: &'_ str) -> ParserResult<'_, (&str, Iri<'_>)> {
         prefix(PREFIX_SPARQL).parse(s)
     }
 }
@@ -151,7 +151,7 @@ pub(crate) mod literal {
         }
     }
 
-    pub(crate) fn parse_number(s: &str) -> ParserResult<Literal> {
+    pub(crate) fn parse_number(s: &'_ str) -> ParserResult<'_, Literal<'_>> {
         map_parser(
             recognize_float,
             alt((
@@ -164,14 +164,14 @@ pub(crate) mod literal {
     }
 
     #[allow(unused)]
-    pub(crate) fn primitive_literal_sparql(s: &str) -> ParserResult<Literal> {
+    pub(crate) fn primitive_literal_sparql(s: &'_ str) -> ParserResult<'_, Literal<'_>> {
         preceded(multispace0, alt((parse_boolean(false), parse_number))).parse(s)
     }
-    pub(crate) fn primitive_literal_turtle(s: &str) -> ParserResult<Literal> {
+    pub(crate) fn primitive_literal_turtle(s: &'_ str) -> ParserResult<'_, Literal<'_>> {
         preceded(multispace0, alt((parse_boolean(true), parse_number))).parse(s)
     }
 
-    pub(crate) fn string_literal(s: &str) -> ParserResult<Literal> {
+    pub(crate) fn string_literal(s: &'_ str) -> ParserResult<'_, Literal<'_>> {
         let long_single_quote_literal = delimited(
             tag(STRING_LITERAL_LONG_SINGLE_QUOTE),
             take_until(STRING_LITERAL_LONG_SINGLE_QUOTE),
@@ -185,7 +185,7 @@ pub(crate) mod literal {
 
         let mut datatype = preceded(tag("^^"), iri);
 
-        fn lang(s: &str) -> ParserResult<&str> {
+        fn lang(s: &'_ str) -> ParserResult<'_, &'_ str> {
             preceded(tag(LANGTAG), take_while(|a: char| a.is_alpha() || a == '-')).parse(s)
         }
 
@@ -258,12 +258,12 @@ pub(crate) mod literal {
         }
     }
 
-    pub(crate) fn literal_turtle(s: &str) -> ParserResult<Literal> {
+    pub(crate) fn literal_turtle(s: &'_ str) -> ParserResult<'_, Literal<'_>> {
         alt((string_literal, primitive_literal_turtle)).parse(s)
     }
 
     #[allow(unused)]
-    pub(crate) fn literal_sparql(s: &str) -> ParserResult<Literal> {
+    pub(crate) fn literal_sparql(s: &'_ str) -> ParserResult<'_, Literal<'_>> {
         alt((string_literal, primitive_literal_sparql)).parse(s)
     }
 }
@@ -301,7 +301,7 @@ pub(crate) mod triple {
             },
         )
     }
-    pub(crate) fn ns_type(s: &str) -> ParserResult<Iri> {
+    pub(crate) fn ns_type(s: &'_ str) -> ParserResult<'_, Iri<'_>> {
         map(
             preceded(multispace0, terminated(char('a'), multispace1)),
             |_| Iri::Enclosed(NS_TYPE),
@@ -371,7 +371,7 @@ pub(crate) mod triple {
         )
     }
     // https://www.w3.org/TR/turtle/ 2.6 RDF Blank Nodes
-    pub(crate) fn labeled_bnode(s: &str) -> ParserResult<BlankNode> {
+    pub(crate) fn labeled_bnode(s: &'_ str) -> ParserResult<'_, BlankNode<'_>> {
         fn allowed_but_not_as_first(c: char) -> bool {
             matches!(c,'.' | '-' | '·' | '\u{0300}'..='\u{036F}' | '\u{203F}'..='\u{2040}')
         }
@@ -404,7 +404,7 @@ pub(crate) mod triple {
         Ok((rest, BlankNode::Labeled(bnode)))
     }
 }
-pub(crate) fn comments(s: &str) -> ParserResult<Vec<&str>> {
+pub(crate) fn comments(s: &str) -> ParserResult<'_, Vec<&str>> {
     many0(delimited(
         multispace0,
         preceded(char('#'), take_until("\n")),
@@ -413,10 +413,10 @@ pub(crate) fn comments(s: &str) -> ParserResult<Vec<&str>> {
     .parse(s)
 }
 
-pub(crate) fn paren_close(s: &str) -> ParserResult<&str> {
+pub(crate) fn paren_close(s: &str) -> ParserResult<'_, &str> {
     preceded(multispace0, tag(")")).parse(s)
 }
-pub(crate) fn paren_open(s: &str) -> ParserResult<&str> {
+pub(crate) fn paren_open(s: &str) -> ParserResult<'_, &str> {
     tag_no_space("(").parse(s)
 }
 

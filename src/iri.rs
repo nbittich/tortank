@@ -110,7 +110,7 @@ impl IRI<'_> {
     pub fn is_relative(&self) -> bool {
         matches!(self, IRI::Reference(_))
     }
-    pub fn has_scheme(s: &str) -> bool {
+    pub fn has_scheme(s: &'_ str) -> bool {
         match parse_scheme(s) {
             Ok((_, scheme)) => !scheme.is_empty(),
             Err(_) => false,
@@ -132,17 +132,17 @@ pub(crate) mod ip {
         Compressed,
         IpV4(Vec<u8>),
     }
-    pub(crate) fn parse_ip_v6(s: &str) -> ParserResult<Vec<u16>> {
-        fn hex_to_u16(input: &str) -> Result<u16, std::num::ParseIntError> {
+    pub(crate) fn parse_ip_v6(s: &'_ str) -> ParserResult<'_, Vec<u16>> {
+        fn hex_to_u16(input: &'_ str) -> Result<u16, std::num::ParseIntError> {
             u16::from_str_radix(input, 16)
         }
-        fn recognize_hexadecimal(input: &str) -> ParserResult<&str> {
+        fn recognize_hexadecimal(input: &'_ str) -> ParserResult<'_, &'_ str> {
             recognize(take_while_m_n(1, 4, |c: char| c.is_ascii_hexdigit())).parse(input)
         }
-        fn hextet(s: &str) -> ParserResult<u16> {
+        fn hextet(s: &'_ str) -> ParserResult<'_, u16> {
             map_res(recognize_hexadecimal, hex_to_u16).parse(s)
         }
-        fn segment(s: &str) -> ParserResult<Segment> {
+        fn segment(s: &'_ str) -> ParserResult<'_, Segment> {
             alt((
                 map(tag("::"), |_| Segment::Compressed),
                 preceded(opt(tag(":")), map(parse_ip_v4, Segment::IpV4)),
@@ -189,7 +189,7 @@ pub(crate) mod ip {
 
         Ok((rest, ipv6))
     }
-    pub(crate) fn parse_ip_v4(s: &str) -> ParserResult<Vec<u8>> {
+    pub(crate) fn parse_ip_v4(s: &'_ str) -> ParserResult<'_, Vec<u8>> {
         verify(
             separated_list1(
                 tag("."),
@@ -214,13 +214,13 @@ mod parser {
         ip::{parse_ip_v4, parse_ip_v6},
     };
 
-    fn parse_i_query(s: &str) -> ParserResult<&str> {
+    fn parse_i_query(s: &'_ str) -> ParserResult<'_, &'_ str> {
         let (rest, _) =
             many0_count(alt((parse_ip_char, parse_i_private, tag("/"), tag("?")))).parse(s)?;
         let value = &s[0..s.len() - rest.len()];
         Ok((rest, value))
     }
-    fn parse_authority(s: &str) -> ParserResult<Authority> {
+    fn parse_authority(s: &'_ str) -> ParserResult<'_, Authority<'_>> {
         map(
             (
                 opt(terminated(parse_userinfo, tag("@"))),
@@ -236,10 +236,10 @@ mod parser {
         .parse(s)
     }
 
-    pub(super) fn parse_iri_reference(s: &str) -> ParserResult<IRI> {
+    pub(super) fn parse_iri_reference(s: &'_ str) -> ParserResult<'_, IRI<'_>> {
         map(parse_i_relative_ref, IRI::Reference).parse(s)
     }
-    pub(super) fn parse_iri(s: &str) -> ParserResult<IRI> {
+    pub(super) fn parse_iri(s: &'_ str) -> ParserResult<'_, IRI<'_>> {
         map(
             (
                 parse_scheme,
@@ -256,7 +256,7 @@ mod parser {
         )
         .parse(s)
     }
-    pub(super) fn parse_absolute_iri(s: &str) -> ParserResult<IRI> {
+    pub(super) fn parse_absolute_iri(s: &'_ str) -> ParserResult<'_, IRI<'_>> {
         map(
             (
                 parse_scheme,
@@ -271,7 +271,7 @@ mod parser {
         )
         .parse(s)
     }
-    fn parse_i_relative_ref(s: &str) -> ParserResult<RelativeRef> {
+    fn parse_i_relative_ref(s: &'_ str) -> ParserResult<'_, RelativeRef<'_>> {
         map(
             (
                 parse_i_relative_part,
@@ -286,7 +286,7 @@ mod parser {
         )
         .parse(s)
     }
-    fn parse_i_relative_part(s: &str) -> ParserResult<RelativePart> {
+    fn parse_i_relative_part(s: &'_ str) -> ParserResult<'_, RelativePart<'_>> {
         alt((
             map(
                 preceded(tag("//"), pair(parse_authority, parse_ipath_abempty)),
@@ -298,7 +298,7 @@ mod parser {
         ))
         .parse(s)
     }
-    fn parse_i_hier_part(s: &str) -> ParserResult<IHierPart> {
+    fn parse_i_hier_part(s: &'_ str) -> ParserResult<'_, IHierPart<'_>> {
         alt((
             map(
                 preceded(tag("//"), pair(parse_authority, parse_ipath_abempty)),
@@ -310,7 +310,7 @@ mod parser {
         ))
         .parse(s)
     }
-    fn parse_host(s: &str) -> ParserResult<Host> {
+    fn parse_host(s: &'_ str) -> ParserResult<'_, Host<'_>> {
         alt((
             map(
                 preceded(opt(tag("[")), terminated(parse_ip_v6, opt(tag("]")))),
@@ -322,12 +322,12 @@ mod parser {
         .parse(s)
     }
 
-    fn parse_i_fragment(s: &str) -> ParserResult<&str> {
+    fn parse_i_fragment(s: &'_ str) -> ParserResult<'_, &'_ str> {
         let (rest, _) = many0_count(alt((parse_ip_char, tag("/"), tag("?")))).parse(s)?;
         let value = &s[0..s.len() - rest.len()];
         Ok((rest, value))
     }
-    fn parse_ipath_empty(s: &str) -> ParserResult<IPath> {
+    fn parse_ipath_empty(s: &'_ str) -> ParserResult<'_, IPath<'_>> {
         map(
             verify(peek(opt(parse_ip_char)), |ip_char| ip_char.is_none()),
             |_| IPath::Empty,
@@ -335,7 +335,7 @@ mod parser {
         .parse(s)
     }
 
-    fn parse_ipath_rootless(s: &str) -> ParserResult<IPath> {
+    fn parse_ipath_rootless(s: &'_ str) -> ParserResult<'_, IPath<'_>> {
         map(
             pair(
                 parse_i_segmentnz,
@@ -346,7 +346,7 @@ mod parser {
         .parse(s)
     }
 
-    fn parse_ipath_noscheme(s: &str) -> ParserResult<IPath> {
+    fn parse_ipath_noscheme(s: &'_ str) -> ParserResult<'_, IPath<'_>> {
         map(
             pair(
                 parse_i_segmentnz_nc,
@@ -356,14 +356,14 @@ mod parser {
         )
         .parse(s)
     }
-    fn parse_ipath_abempty(s: &str) -> ParserResult<IPath> {
+    fn parse_ipath_abempty(s: &'_ str) -> ParserResult<'_, IPath<'_>> {
         map(
             many0(recognize(preceded(tag("/"), parse_i_segment0))),
             IPath::AbEmpty,
         )
         .parse(s)
     }
-    fn parse_ipath_absolute(s: &str) -> ParserResult<IPath> {
+    fn parse_ipath_absolute(s: &'_ str) -> ParserResult<'_, IPath<'_>> {
         let (first_two, _) = peek(take(2usize)).parse(s)?;
         let parser = pair(
             parse_i_segmentnz,
@@ -375,18 +375,18 @@ mod parser {
         )
         .parse(s)
     }
-    fn parse_i_segmentnz(s: &str) -> ParserResult<&str> {
+    fn parse_i_segmentnz(s: &'_ str) -> ParserResult<'_, &'_ str> {
         let (rest, _) = many0_count(parse_ip_char).parse(s)?;
         let value = &s[0..s.len() - rest.len()];
         Ok((rest, value))
     }
-    fn parse_i_segment0(s: &str) -> ParserResult<&str> {
+    fn parse_i_segment0(s: &'_ str) -> ParserResult<'_, &'_ str> {
         let (rest, _) = many0_count(parse_ip_char).parse(s)?;
         let value = &s[0..s.len() - rest.len()];
         Ok((rest, value))
     }
 
-    fn parse_i_segmentnz_nc(s: &str) -> ParserResult<&str> {
+    fn parse_i_segmentnz_nc(s: &'_ str) -> ParserResult<'_, &'_ str> {
         let (rest, _) = many1_count(alt((
             parse_i_unreserved,
             parse_pct_encoded,
@@ -397,7 +397,7 @@ mod parser {
         let value = &s[0..s.len() - rest.len()];
         Ok((rest, value))
     }
-    fn parse_ip_char(s: &str) -> ParserResult<&str> {
+    fn parse_ip_char(s: &'_ str) -> ParserResult<'_, &'_ str> {
         alt((
             parse_i_unreserved,
             parse_pct_encoded,
@@ -407,17 +407,17 @@ mod parser {
         ))
         .parse(s)
     }
-    pub(super) fn parse_scheme(s: &str) -> ParserResult<&str> {
+    pub(super) fn parse_scheme(s: &'_ str) -> ParserResult<'_, &'_ str> {
         terminated(
             verify(
                 take_while1(|c: char| c.is_alphanumeric() || c == '.' || c == '-' || c == '+'),
-                |scheme: &str| scheme.starts_with(|c: char| c.is_alphabetic()),
+                |scheme: &'_ str| scheme.starts_with(|c: char| c.is_alphabetic()),
             ),
             tag(":"),
         )
         .parse(s)
     }
-    fn parse_userinfo(s: &str) -> ParserResult<&str> {
+    fn parse_userinfo(s: &'_ str) -> ParserResult<'_, &'_ str> {
         let (rest, _) = many1_count(alt((
             parse_pct_encoded,
             parse_i_unreserved,
@@ -428,10 +428,10 @@ mod parser {
         let value = &s[0..s.len() - rest.len()];
         Ok((rest, value))
     }
-    fn parse_port(s: &str) -> ParserResult<&str> {
+    fn parse_port(s: &'_ str) -> ParserResult<'_, &'_ str> {
         take_while1(|p: char| p.is_numeric())(s)
     }
-    fn parse_i_reg_name(s: &str) -> ParserResult<&str> {
+    fn parse_i_reg_name(s: &'_ str) -> ParserResult<'_, &'_ str> {
         let (rest, _) = many1_count(alt((
             parse_pct_encoded,
             parse_i_unreserved,
@@ -441,8 +441,8 @@ mod parser {
         let value = &s[0..s.len() - rest.len()];
         Ok((rest, value))
     }
-    fn parse_i_private(s: &str) -> ParserResult<&str> {
-        verify(take(1usize), |hex: &str| {
+    fn parse_i_private(s: &'_ str) -> ParserResult<'_, &'_ str> {
+        verify(take(1usize), |hex: &'_ str| {
             hex.starts_with(|c: char| {
                 matches!(
                     c,
@@ -454,7 +454,7 @@ mod parser {
         })
         .parse(s)
     }
-    fn parse_i_unreserved(s: &str) -> ParserResult<&str> {
+    fn parse_i_unreserved(s: &'_ str) -> ParserResult<'_, &'_ str> {
         fn is_ucs_char(c: &char) -> bool {
             matches!(c,
                 '\u{00A0}'..='\u{D7FF}' |
@@ -476,15 +476,15 @@ mod parser {
                 '\u{E1000}'..='\u{EFFFD}'
             )
         }
-        verify(take(1usize), |unres: &str| {
+        verify(take(1usize), |unres: &'_ str| {
             unres.starts_with(|c: char| {
                 c.is_alphanum() || c == '-' || c == '.' || c == '_' || c == '~' || is_ucs_char(&c)
             })
         })
         .parse(s)
     }
-    fn parse_sub_delims(s: &str) -> ParserResult<&str> {
-        verify(take(1usize), |c: &str| {
+    fn parse_sub_delims(s: &'_ str) -> ParserResult<'_, &'_ str> {
+        verify(take(1usize), |c: &'_ str| {
             c == "!"
                 || c == "$"
                 || c == "&"
@@ -499,16 +499,16 @@ mod parser {
         })
         .parse(s)
     }
-    fn parse_pct_encoded(s: &str) -> ParserResult<&str> {
+    fn parse_pct_encoded(s: &'_ str) -> ParserResult<'_, &'_ str> {
         recognize(preceded(
             tag("%"),
-            verify(take(2usize), |hex: &str| {
+            verify(take(2usize), |hex: &'_ str| {
                 hex.chars().all(|c| c.is_ascii_hexdigit())
             }),
         ))
         .parse(s)
     }
-    fn _hex_to_char(hex: &str) -> Option<char> {
+    fn _hex_to_char(hex: &'_ str) -> Option<char> {
         u32::from_str_radix(hex, 16).ok().and_then(char::from_u32)
     }
 }

@@ -257,7 +257,7 @@ impl<'a> TurtleDoc<'a> {
 
     /// creates a new, indepependent, turtle_doc containing all the statements in this turtle_doc
     /// that are not in another.
-    pub fn difference(&self, other: &TurtleDoc) -> Result<TurtleDoc, TurtleDocError> {
+    pub fn difference(&'_ self, other: &TurtleDoc) -> Result<TurtleDoc<'_>, TurtleDocError> {
         let diff = self
             .statements
             .iter()
@@ -270,7 +270,7 @@ impl<'a> TurtleDoc<'a> {
 
     /// creates a new, indepependent, turtle_doc containing all statements that are in both this
     /// model and another
-    pub fn intersection(&self, other: &TurtleDoc) -> Result<TurtleDoc, TurtleDocError> {
+    pub fn intersection(&'_ self, other: &TurtleDoc) -> Result<TurtleDoc<'_>, TurtleDocError> {
         let intersection = self
             .statements
             .iter()
@@ -318,11 +318,11 @@ impl<'a> TurtleDoc<'a> {
     }
 
     pub fn parse_and_list_statements(
-        &self,
+        &'_ self,
         subject: Option<String>,
         predicate: Option<String>,
         object: Option<String>,
-    ) -> Result<Vec<&Statement>, TurtleDocError> {
+    ) -> Result<Vec<&'_ Statement<'_>>, TurtleDocError> {
         let mut statements: Vec<&Statement> = self.statements.iter().collect();
         let prefixes: BTreeMap<Cow<str>, Cow<str>> = self.prefixes.clone();
         let base = self.base.map(Cow::Borrowed);
@@ -360,11 +360,11 @@ impl<'a> TurtleDoc<'a> {
     /// list statements in document
     /// takes ?s ?p ?o as optional parameters to filter more stuff
     pub fn list_statements(
-        &self,
+        &'_ self,
         subject: Option<&Node>,
         predicate: Option<&Node>,
         object: Option<&Node>,
-    ) -> Vec<&Statement> {
+    ) -> Vec<&'_ Statement<'_>> {
         let mut statements: Vec<&Statement> = self.statements.iter().collect();
 
         if let Some(subject) = subject {
@@ -496,7 +496,7 @@ impl<'a> TurtleDoc<'a> {
         })
     }
 
-    fn extract_iri(value: Iri) -> Result<&str, TurtleDocError> {
+    fn extract_iri(value: Iri<'_>) -> Result<&str, TurtleDocError> {
         if let Iri::Enclosed(iri) = value {
             Ok(iri)
         } else {
@@ -518,11 +518,11 @@ impl<'a> TurtleDoc<'a> {
                 // let iri_rfc3987 = IRI::try_from(iri).map_err(|e| TurtleDocError {
                 //     message: e.to_string(),
                 // })?;
-                if !IRI::has_scheme(iri) {
-                    if let Some(base) = base {
-                        let iri = (*base).to_owned() + iri;
-                        return Ok(Node::Iri(Cow::Owned(iri.to_string())));
-                    }
+                if !IRI::has_scheme(iri)
+                    && let Some(base) = base
+                {
+                    let iri = (*base).to_owned() + iri;
+                    return Ok(Node::Iri(Cow::Owned(iri.to_string())));
                 }
                 Ok(Node::Iri(Cow::Borrowed(iri)))
             }
@@ -1242,7 +1242,7 @@ impl TurtleDoc<'_> {
         {
             let resource = turtle_map
                 .entry(subject.get_iri()?)
-                .or_insert_with(|| HashMap::<String, Vec<String>>::new());
+                .or_insert_with(HashMap::<String, Vec<String>>::new);
             let predicate = {
                 let predicate = predicate.get_iri()?;
                 PREFIX_OR_NONE(predicate).unwrap_or_else(|| format!("<{predicate}>"))

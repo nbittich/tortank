@@ -35,7 +35,7 @@ pub enum TurtleValue<'a> {
     },
 }
 
-fn object_lists(s: &str) -> ParserResult<TurtleValue> {
+fn object_lists(s: &'_ str) -> ParserResult<'_, TurtleValue<'_>> {
     object_list(object, TurtleValue::ObjectList).parse(s)
 }
 
@@ -61,7 +61,7 @@ where
     )
 }
 
-fn collection_turtle(s: &str) -> ParserResult<TurtleValue> {
+fn collection_turtle(s: &'_ str) -> ParserResult<'_, TurtleValue<'_>> {
     map(collection(object), |res: VecDeque<TurtleValue>| {
         if res.is_empty() {
             TurtleValue::Iri(Iri::Enclosed(RDF_NIL))
@@ -72,30 +72,30 @@ fn collection_turtle(s: &str) -> ParserResult<TurtleValue> {
     .parse(s)
 }
 
-fn anon_bnode_turtle(s: &str) -> ParserResult<TurtleValue> {
+fn anon_bnode_turtle(s: &'_ str) -> ParserResult<'_, TurtleValue<'_>> {
     let unlabeled_subject = |s| Ok((s, TurtleValue::BNode(BlankNode::Unlabeled)));
     anon_bnode(alt((predicate_lists(unlabeled_subject), unlabeled_subject))).parse(s)
 }
 
-fn blank_node(s: &str) -> ParserResult<TurtleValue> {
+fn blank_node(s: &'_ str) -> ParserResult<'_, TurtleValue<'_>> {
     alt((map(labeled_bnode, TurtleValue::BNode), anon_bnode_turtle)).parse(s)
 }
 
-fn iri_turtle(s: &str) -> ParserResult<TurtleValue> {
+fn iri_turtle(s: &'_ str) -> ParserResult<'_, TurtleValue<'_>> {
     map(iri, TurtleValue::Iri).parse(s)
 }
-fn literal_turtle(s: &str) -> ParserResult<TurtleValue> {
+fn literal_turtle(s: &'_ str) -> ParserResult<'_, TurtleValue<'_>> {
     map(literal, TurtleValue::Literal).parse(s)
 }
 
-pub(crate) fn subject(s: &str) -> ParserResult<TurtleValue> {
+pub(crate) fn subject(s: &'_ str) -> ParserResult<'_, TurtleValue<'_>> {
     alt((blank_node, iri_turtle, collection_turtle)).parse(s)
 }
-pub(crate) fn predicate(s: &str) -> ParserResult<TurtleValue> {
+pub(crate) fn predicate(s: &'_ str) -> ParserResult<'_, TurtleValue<'_>> {
     alt((map(ns_type, TurtleValue::Iri), iri_turtle)).parse(s)
 }
 
-pub(crate) fn object(s: &str) -> ParserResult<TurtleValue> {
+pub(crate) fn object(s: &'_ str) -> ParserResult<'_, TurtleValue<'_>> {
     preceded(
         multispace0,
         alt((iri_turtle, blank_node, collection_turtle, literal_turtle)),
@@ -103,7 +103,7 @@ pub(crate) fn object(s: &str) -> ParserResult<TurtleValue> {
     .parse(s)
 }
 
-pub(crate) fn triples(s: &str) -> ParserResult<TurtleValue> {
+pub(crate) fn triples(s: &'_ str) -> ParserResult<'_, TurtleValue<'_>> {
     terminated(
         alt((predicate_lists(subject), anon_bnode_turtle)),
         preceded(multispace0, terminated(alt((tag("."), eof)), multispace0)),
@@ -111,7 +111,7 @@ pub(crate) fn triples(s: &str) -> ParserResult<TurtleValue> {
     .parse(s)
 }
 
-pub(crate) fn ntriple_statement(s: &str) -> ParserResult<TurtleValue> {
+pub(crate) fn ntriple_statement(s: &'_ str) -> ParserResult<'_, TurtleValue<'_>> {
     preceded(
         comments,
         terminated(
@@ -130,14 +130,14 @@ pub(crate) fn ntriple_statement(s: &str) -> ParserResult<TurtleValue> {
     )
     .parse(s)
 }
-pub(crate) fn ntriple_subject(s: &str) -> ParserResult<TurtleValue> {
+pub(crate) fn ntriple_subject(s: &'_ str) -> ParserResult<'_, TurtleValue<'_>> {
     alt((map(labeled_bnode, TurtleValue::BNode), iri_turtle)).parse(s)
 }
-pub(crate) fn ntriple_predicate(s: &str) -> ParserResult<TurtleValue> {
+pub(crate) fn ntriple_predicate(s: &'_ str) -> ParserResult<'_, TurtleValue<'_>> {
     alt((map(ns_type, TurtleValue::Iri), iri_turtle)).parse(s)
 }
 
-pub(crate) fn ntriple_object(s: &str) -> ParserResult<TurtleValue> {
+pub(crate) fn ntriple_object(s: &'_ str) -> ParserResult<'_, TurtleValue<'_>> {
     preceded(
         multispace0,
         alt((
@@ -149,16 +149,16 @@ pub(crate) fn ntriple_object(s: &str) -> ParserResult<TurtleValue> {
     .parse(s)
 }
 
-fn directive(s: &str) -> ParserResult<TurtleValue> {
+fn directive(s: &'_ str) -> ParserResult<'_, TurtleValue<'_>> {
     let base_to_turtle = map(alt((base_sparql, base_turtle)), TurtleValue::Base);
     let prefix_to_turtle = map(alt((prefix_turtle, prefix_sparql)), TurtleValue::Prefix);
     alt((base_to_turtle, prefix_to_turtle)).parse(s)
 }
 
-pub(crate) fn statement(s: &str) -> ParserResult<TurtleValue> {
+pub(crate) fn statement(s: &'_ str) -> ParserResult<'_, TurtleValue<'_>> {
     preceded(comments, alt((directive, triples))).parse(s)
 }
 
-pub fn statements(s: &str) -> ParserResult<Vec<TurtleValue>> {
+pub fn statements(s: &'_ str) -> ParserResult<'_, Vec<TurtleValue<'_>>> {
     many0(statement).parse(s)
 }
