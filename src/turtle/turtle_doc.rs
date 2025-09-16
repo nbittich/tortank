@@ -196,10 +196,11 @@ pub struct TurtleDoc<'a> {
 }
 
 impl<'a> Node<'a> {
-    pub fn get_iri(&self) -> Result<&Cow<'a, str>, TurtleDocError> {
+    pub fn get_iri(&self) -> Result<Cow<'a, str>, TurtleDocError> {
         match self {
-            Node::Iri(cow) => Ok(cow),
+            Node::Iri(cow) => Ok(cow.clone()),
             Node::Ref(node) => node.get_iri(),
+            Node::LabeledBlankNode(_) => Ok(Cow::Owned(self.to_string())),
             node => Err(TurtleDocError {
                 message: format!("node is not an iri {node}"),
             }),
@@ -1337,11 +1338,11 @@ impl TurtleDoc<'_> {
         } in self.statements.iter()
         {
             let resource = turtle_map
-                .entry(subject.get_iri()?)
+                .entry(subject.to_string())
                 .or_insert_with(HashMap::<String, Vec<String>>::new);
             let predicate = {
-                let predicate: &Cow<'_, str> = predicate.get_iri()?;
-                PREFIX_OR_NONE(predicate, &mut used_prefixes)
+                let predicate = predicate.get_iri()?;
+                PREFIX_OR_NONE(&predicate, &mut used_prefixes)
                     .unwrap_or_else(|| format!("<{predicate}>"))
             };
             let predicate_array = resource.entry(predicate).or_default();
@@ -1359,7 +1360,7 @@ impl TurtleDoc<'_> {
                 .into_iter()
                 .map(|(subject, predicates)| {
                     format!(
-                        "<{subject}> {}.",
+                        "{subject} {}.",
                         predicates
                             .iter()
                             .enumerate()

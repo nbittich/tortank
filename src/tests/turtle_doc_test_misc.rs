@@ -151,6 +151,8 @@ fn test_as_turtle_basic() {
     <http://mu.semte.ch/vocabularies/ext/zonality> <http://lblod.data.gift/concepts/b651931b-923c-477c-8da9-fc7dd841fdcc>;
     <http://purl.org/dc/terms/isVersionOf> <http://data.vlaanderen.be/id/concept/Verkeersbordconcept/f9312556b1bdfbb278ec04033417152abbb254466df0069ff1894d0ea7a55482>;
     <http://www.w3.org/ns/prov#generatedAtTime> "2024-11-22T07:12:35.575Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>.
+    
+    _:bardak <http://www.w3.org/2004/02/skos/core#prefLabel> "A11".
     "#;
     let doc = TurtleDoc::try_from((r, None as Option<String>)).unwrap();
     let turtle = doc.as_turtle().unwrap();
