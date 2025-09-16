@@ -12,6 +12,7 @@ use crate::triple_common_parser::{Literal as ASTLiteral, comments};
 use crate::turtle::turtle_parser::{
     TurtleValue, object as parse_obj, predicate as parse_pred, statements, subject as parse_sub,
 };
+use crate::utils::XSD_STRING;
 use chrono::{DateTime, FixedOffset, Local, NaiveDateTime, SecondsFormat};
 use serde_derive::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -1272,11 +1273,62 @@ impl TurtleDoc<'_> {
                 .entry(subject.get_iri()?)
                 .or_insert_with(HashMap::<String, Vec<String>>::new);
             let predicate = {
-                let predicate = predicate.get_iri()?;
+                let predicate: &Cow<'_, str> = predicate.get_iri()?;
                 PREFIX_OR_NONE(predicate, &mut used_prefixes)
                     .unwrap_or_else(|| format!("<{predicate}>"))
             };
             let predicate_array = resource.entry(predicate).or_default();
+            let object_str = object.to_string();
+            let object = match object {
+                Node::Iri(_) => {
+                    PREFIX_OR_NONE(&object_str, &mut used_prefixes).unwrap_or_else(|| object_str)
+                }
+                Node::Literal(literal) => match literal {
+                    Literal::Quoted { datatype, .. } => {
+                        if let Some(datatype) = datatype
+                            && datatype.as_ref() == &Node::Iri(Cow::Borrowed(XSD_STRING))
+                        {
+                            format!("{}", object_str.replace(&format!("^^<{XSD_STRING}>"), ""))
+                        } else {
+                            object_str
+                        }
+                    }
+                    Literal::Double(_) => format!(
+                        "{}",
+                        object_str.replace(&format!("^^<{XSD_DOUBLE}>"), &format!("^^xsd:double"))
+                    ),
+                    Literal::Decimal(_) => format!(
+                        "{}",
+                        object_str
+                            .replace(&format!("^^<{XSD_DECIMAL}>"), &format!("^^xsd:decimal"))
+                    ),
+                    Literal::Integer(_) => format!(
+                        "{}",
+                        object_str
+                            .replace(&format!("^^<{XSD_INTEGER}>"), &format!("^^xsd:integer"))
+                    ),
+                    Literal::Boolean(_) => format!(
+                        "{}",
+                        object_str
+                            .replace(&format!("^^<{XSD_BOOLEAN}>"), &format!("^^xsd:boolean"))
+                    ),
+                    Literal::Date(_) => format!(
+                        "{}",
+                        object_str.replace(&format!("^^<{XSD_DATE}>"), &format!("^^xsd:date"))
+                    ),
+                    Literal::DateTime(_) => format!(
+                        "{}",
+                        object_str
+                            .replace(&format!("^^<{XSD_DATE_TIME}>"), &format!("^^xsd:dateTime"))
+                    ),
+                    Literal::Time(_) => format!(
+                        "{}",
+                        object_str.replace(&format!("^^<{XSD_TIME}>"), &format!("^^xsd:time"))
+                    ),
+                    _ => object_str,
+                },
+                _ => object_str,
+            };
             predicate_array.push(object.to_string());
         }
 
@@ -1288,12 +1340,17 @@ impl TurtleDoc<'_> {
             + "\n"
             + &turtle_map
                 .into_iter()
-                .map(|(uri, predicates)| {
+                .map(|(subject, predicates)| {
                     format!(
-                        "<{uri}> {}.",
+                        "<{subject}> {}.",
                         predicates
                             .iter()
-                            .map(|(p, o)| format!("\t{p} {}", o.join(", ")))
+                            .enumerate()
+                            .map(|(idx, (p, o))| format!(
+                                "{}{p} {}",
+                                if idx == 0 { "" } else { "\t" },
+                                o.join(", ")
+                            ))
                             .collect::<Vec<_>>()
                             .join(";\n")
                     )
