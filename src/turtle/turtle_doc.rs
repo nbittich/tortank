@@ -48,6 +48,7 @@ fn get_uuid() -> String {
         FAKE_UUID_GEN.load(std::sync::atomic::Ordering::SeqCst)
     )
 }
+const SPECIAL_TTL_RDF_TYPE_PREFIX: (&str, &str) = ("rdf:type", "a");
 
 const PREFIXES: &[(&str, &str)] = &[
     ("rdf:", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"),
@@ -69,16 +70,41 @@ const PREFIXES: &[(&str, &str)] = &[
     ("euvoc:", "http://publications.europa.eu/ontology/euvoc#"),
     ("mobiliteit:", "https://data.vlaanderen.be/ns/mobiliteit#"),
     ("ldes:", "http://w3id.org/ldes#"),
+    ("owl:", "http://www.w3.org/2002/07/owl#"),
+    ("qb:", "http://purl.org/linked-data/cube#"),
+    ("time:", "http://www.w3.org/2006/time#"),
+    ("geo:", "http://www.w3.org/2003/01/geo/wgs84_pos#"),
+    ("vcard:", "http://www.w3.org/2006/vcard/ns#"),
+    ("cc:", "http://creativecommons.org/ns#"),
+    ("rdfa:", "http://www.w3.org/ns/rdfa#"),
+    ("ssn:", "http://www.w3.org/ns/ssn/"),
+    ("rr:", "http://www.w3.org/ns/r2rml#"),
+    ("wot:", "http://xmlns.com/wot/0.1/"),
+    ("dbo:", "http://dbpedia.org/ontology/"),
+    ("dbp:", "http://dbpedia.org/property/"),
+    ("dbpprop:", "http://dbpedia.org/property/"),
+    ("ex:", "http://example.org/"),
+    ("bibo:", "http://purl.org/ontology/bibo/"),
+    ("obo:", "http://purl.obolibrary.org/obo/"),
+    ("qudt:", "http://qudt.org/schema/qudt/"),
+    ("geo:", "<http://www.opengis.net/ont/geosparql#>"),
 ];
-const PREFIX_OR_NONE: fn(&str) -> Option<String> = |s| {
-    PREFIXES.iter().find_map(|(p, uri)| {
-        if s.contains(uri) {
-            Some(s.replace(uri, p))
-        } else {
-            None
-        }
-    })
-};
+const PREFIX_OR_NONE: fn(&str, &mut HashMap<&'static str, &'static str>) -> Option<String> =
+    |s, used_prefixes| {
+        PREFIXES.iter().find_map(|(p, uri)| {
+            if s.contains(uri) {
+                used_prefixes.insert(p, uri);
+                let replaced = s.replace(uri, p);
+                if replaced == SPECIAL_TTL_RDF_TYPE_PREFIX.0 {
+                    Some(SPECIAL_TTL_RDF_TYPE_PREFIX.1.to_string())
+                } else {
+                    Some(replaced)
+                }
+            } else {
+                None
+            }
+        })
+    };
 
 #[derive(PartialEq, Debug)]
 pub struct TurtleDocError {
@@ -1234,6 +1260,8 @@ impl Display for TurtleDocError {
 impl TurtleDoc<'_> {
     pub fn as_turtle(&self) -> Result<String, TurtleDocError> {
         let mut turtle_map = HashMap::new();
+        let mut used_prefixes = HashMap::with_capacity(PREFIXES.len());
+
         for Statement {
             subject,
             predicate,
@@ -1245,13 +1273,14 @@ impl TurtleDoc<'_> {
                 .or_insert_with(HashMap::<String, Vec<String>>::new);
             let predicate = {
                 let predicate = predicate.get_iri()?;
-                PREFIX_OR_NONE(predicate).unwrap_or_else(|| format!("<{predicate}>"))
+                PREFIX_OR_NONE(predicate, &mut used_prefixes)
+                    .unwrap_or_else(|| format!("<{predicate}>"))
             };
             let predicate_array = resource.entry(predicate).or_default();
             predicate_array.push(object.to_string());
         }
 
-        Ok(PREFIXES
+        Ok(used_prefixes
             .iter()
             .map(|(k, v)| format!("@prefix {k} <{v}>."))
             .collect::<Vec<_>>()
