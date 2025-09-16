@@ -1278,47 +1278,46 @@ impl TurtleDoc<'_> {
                     .unwrap_or_else(|| format!("<{predicate}>"))
             };
             let predicate_array = resource.entry(predicate).or_default();
-            let object_str = object.to_string();
-            let object = match object {
-                Node::Iri(_) => {
-                    PREFIX_OR_NONE(&object_str, &mut used_prefixes).unwrap_or(object_str)
-                }
-                Node::Literal(literal) => match literal {
-                    Literal::Quoted { datatype, .. } => {
-                        if let Some(datatype) = datatype
-                            && datatype.as_ref() == &Node::Iri(Cow::Borrowed(XSD_STRING))
-                        {
-                            object_str
-                                .replace(&format!("^^<{XSD_STRING}>"), "")
-                                .to_string()
-                        } else {
-                            object_str
+            let object =
+                match object {
+                    Node::Iri(object_str) => PREFIX_OR_NONE(object_str, &mut used_prefixes)
+                        .unwrap_or(object_str.to_string()),
+                    Node::Literal(literal) => {
+                        let object_str = object.to_string();
+                        match literal {
+                            Literal::Quoted { datatype, .. } => {
+                                if let Some(datatype) = datatype
+                                    && datatype.as_ref() == &Node::Iri(Cow::Borrowed(XSD_STRING))
+                                {
+                                    object_str.replace(&format!("^^<{XSD_STRING}>"), "")
+                                } else {
+                                    object_str
+                                }
+                            }
+                            Literal::Double(_) => {
+                                object_str.replace(&format!("^^<{XSD_DOUBLE}>"), "^^xsd:double")
+                            }
+                            Literal::Decimal(_) => {
+                                object_str.replace(&format!("^^<{XSD_DECIMAL}>"), "^^xsd:decimal")
+                            }
+                            Literal::Integer(_) => {
+                                object_str.replace(&format!("^^<{XSD_INTEGER}>"), "^^xsd:integer")
+                            }
+                            Literal::Boolean(_) => {
+                                object_str.replace(&format!("^^<{XSD_BOOLEAN}>"), "^^xsd:boolean")
+                            }
+                            Literal::Date(_) => {
+                                object_str.replace(&format!("^^<{XSD_DATE}>"), "^^xsd:date")
+                            }
+                            Literal::DateTime(_) => object_str
+                                .replace(&format!("^^<{XSD_DATE_TIME}>"), "^^xsd:dateTime"),
+                            Literal::Time(_) => {
+                                object_str.replace(&format!("^^<{XSD_TIME}>"), "^^xsd:time")
+                            }
                         }
                     }
-                    Literal::Double(_) => object_str
-                        .replace(&format!("^^<{XSD_DOUBLE}>"), "^^xsd:double")
-                        .to_string(),
-                    Literal::Decimal(_) => object_str
-                        .replace(&format!("^^<{XSD_DECIMAL}>"), "^^xsd:decimal")
-                        .to_string(),
-                    Literal::Integer(_) => object_str
-                        .replace(&format!("^^<{XSD_INTEGER}>"), "^^xsd:integer")
-                        .to_string(),
-                    Literal::Boolean(_) => object_str
-                        .replace(&format!("^^<{XSD_BOOLEAN}>"), "^^xsd:boolean")
-                        .to_string(),
-                    Literal::Date(_) => object_str
-                        .replace(&format!("^^<{XSD_DATE}>"), "^^xsd:date")
-                        .to_string(),
-                    Literal::DateTime(_) => object_str
-                        .replace(&format!("^^<{XSD_DATE_TIME}>"), "^^xsd:dateTime")
-                        .to_string(),
-                    Literal::Time(_) => object_str
-                        .replace(&format!("^^<{XSD_TIME}>"), "^^xsd:time")
-                        .to_string(),
-                },
-                _ => object_str,
-            };
+                    _ => object.to_string(),
+                };
             predicate_array.push(object.to_string());
         }
 
