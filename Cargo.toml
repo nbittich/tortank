@@ -5,19 +5,19 @@ edition = "2024"
 authors = ["Nordine Bittich <contact@bittich.be>"]
 description = "Turtle/N3 parser"
 categories = ["database"]
-rust-version = "1.89"
+rust-version = "1.90"
 license = "MIT"
 homepage = "https://github.com/nbittich/tortank"
 repository = "https://github.com/nbittich/tortank"
 
 [dependencies]
 nom = "8.0.0"
-serde = "1.0.219"
-serde_derive = "1.0.219"
-uuid = { version = "1.17.0", features = ["v7"] }
+serde = "1.0.228"
+serde_derive = "1.0.228"
+uuid = { version = "1.18.1", features = ["v7"] }
 
-serde_json = "1.0.140"
-chrono = "0.4.41"
+serde_json = "1.0.145"
+chrono = "0.4.42"
 nom-language = "0.1.0"
 
 [profile.release]
