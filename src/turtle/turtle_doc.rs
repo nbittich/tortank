@@ -101,6 +101,10 @@ const PREFIXES: &[(&str, &str)] = &[
     ("ext:", "http://mu.semte.ch/vocabularies/ext/"),
     ("qudt:", "http://qudt.org/schema/qudt/"),
     ("geo:", "<http://www.opengis.net/ont/geosparql#>"),
+    ("powders", "http://www.w3.org/2007/05/powder-s#"),
+    ("xvoc", "http://www.w3.org/1999/xhtml/vocab#"),
+    ("locn", "http://www.w3.org/ns/locn#"),
+    ("adres", "https://data.vlaanderen.be/id/adres/"),
 ];
 const PREFIX_OR_NONE: fn(&str, &mut HashMap<&'static str, &'static str>) -> Option<String> =
     |s, used_prefixes| {
