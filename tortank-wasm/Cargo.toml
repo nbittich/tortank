@@ -1,0 +1,38 @@
+[package]
+name = "tortank-wasm"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["console_error_panic_hook", "lol_alloc"]
+
+[dependencies]
+tortank.workspace = true
+
+# [target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = { version = "0.1.7", optional = true }
+wasm-bindgen = "0.2.129"
+lol_alloc = { version = "0.4.1", optional = true }
+js-sys = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde-wasm-bindgen = "0.6"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = [
+    "-O",
+    "--enable-bulk-memory",
+    "--enable-mutable-globals",
+    "--enable-nontrapping-float-to-int",
+]
+
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.34"
