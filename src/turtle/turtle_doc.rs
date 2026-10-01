@@ -109,7 +109,7 @@ const PREFIXES: &[(&str, &str)] = &[
 const PREFIX_OR_NONE: fn(&str, &mut HashMap<&'static str, &'static str>) -> Option<String> =
     |s, used_prefixes| {
         let mut prefixes: Vec<_> = PREFIXES.iter().collect();
-        prefixes.sort_by(|(_, a), (_, b)| b.len().cmp(&a.len())); // prevent prefix collisions
+        prefixes.sort_by_key(|(_, a)| std::cmp::Reverse(a.len())); // prevent prefix collisions
 
         prefixes.iter().find_map(|(p, uri)| {
             if s.contains(uri) {
@@ -274,7 +274,7 @@ impl<'a> TurtleDoc<'a> {
             .into_iter()
             .map(|(k, v)| (Cow::Owned(k), Cow::Owned(v)))
             .collect();
-        for (_, prefix) in prefixes.iter_mut() {
+        for prefix in prefixes.values_mut() {
             let iri = IRI::try_from(prefix.as_ref()).map_err(|e| TurtleDocError {
                 message: e.to_string(),
             })?;
