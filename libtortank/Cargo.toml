@@ -1,0 +1,25 @@
+[package]
+name = "tortank"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+description = "Turtle/N3 parser"
+categories = ["database"]
+
+[dependencies]
+nom.workspace = true
+serde.workspace = true
+serde_derive.workspace = true
+uuid.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+nom-language.workspace = true
+
+[dev-dependencies]
+serial_test.workspace = true
+test-case.workspace = true

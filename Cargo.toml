@@ -1,32 +1,31 @@
-[package]
-name = "tortank"
+[workspace]
+resolver = "3"
+members = ["libtortank"]
+
+[workspace.package]
 version = "0.30.8"
 edition = "2024"
 authors = ["Nordine Bittich <contact@bittich.be>"]
-description = "Turtle/N3 parser"
-categories = ["database"]
-rust-version = "1.98"
 license = "MIT"
+rust-version = "1.98"
 homepage = "https://github.com/nbittich/tortank"
 repository = "https://github.com/nbittich/tortank"
 
-[dependencies]
+[workspace.dependencies]
 nom = "8.0.0"
 serde = "1.0.229"
 serde_derive = "1.0.229"
 uuid = { version = "1.26.1", features = ["v7"] }
-
 serde_json = "1.0.151"
 chrono = "0.4.45"
 nom-language = "0.1.0"
 
-[profile.release]
-opt-level = 'z'
-codegen-units = 1
-panic = 'abort'
-strip = "symbols"
-lto = "thin"
-
-[dev-dependencies]
 serial_test = "3.5.0"
 test-case = "3.4.0"
+
+[profile.release]
+opt-level = "z"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+lto = "thin"
