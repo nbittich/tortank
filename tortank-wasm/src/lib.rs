@@ -80,6 +80,12 @@ impl WasmTurtleDoc {
 
         Ok(Self::from_native(&doc))
     }
+    #[wasm_bindgen(js_name = toTurtle)]
+    pub fn to_turtle(&self) -> Result<String, JsValue> {
+        self.with_native(|doc| {
+            doc.as_turtle().map_err(js_err)
+        })
+    }
 
     /// Construct from the RDF-JSON representation returned by `toJSON()`.
     #[wasm_bindgen(js_name = fromJSON)]
@@ -153,16 +159,8 @@ impl WasmTurtleDoc {
     /// This mirrors the native Statement Display implementation.
     #[wasm_bindgen(js_name = toString)]
     pub fn to_string(&self) -> Result<String, JsValue> {
-        self.with_native(|doc| {
-            let stmts = doc.list_statements(None, None, None);
-
-            Ok(stmts
-                .iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<_>>()
-                .join("\n"))
-        })
-    }
+        self.to_turtle()
+    } 
 
     /// Query using Turtle syntax.
     ///

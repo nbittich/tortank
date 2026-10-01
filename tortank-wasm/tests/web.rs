@@ -27,6 +27,17 @@ ex:bob
 "#;
 
 #[wasm_bindgen_test]
+fn serializes_as_turtle() {
+    let doc = WasmTurtleDoc::parse(TTL, None).unwrap();
+
+    let turtle = doc.to_turtle().unwrap();
+
+    assert!(!turtle.is_empty());
+    assert!(turtle.contains("Alice"));
+    assert!(turtle.contains("Bob"));
+}
+
+#[wasm_bindgen_test]
 fn parses_turtle() {
     let doc = WasmTurtleDoc::parse(TTL, None).unwrap();
 

@@ -47,4 +47,16 @@ const parsed = parseNTriplesStatement(
 
 assert.equal(parsed.statement.subject.value, "https://example.com/a");
 
+const turtle = doc.toTurtle();
+
+assert.equal(typeof turtle, "string");
+assert.ok(turtle.length > 0);
+
+assert.ok(
+  turtle.includes("Alice"),
+  `expected serialized Turtle to contain Alice:\n${turtle}`,
+);
+
+assert.ok(doc.difference(TurtleDoc.parse(turtle)), 0);
+
 console.log("node wasm tests passed");
