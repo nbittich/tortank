@@ -1386,8 +1386,6 @@ impl TurtleDoc<'_> {
     }
 }
 
-
-
 impl<'a> TryFrom<&'a RdfJsonNodeResult> for Node<'a> {
     type Error = TurtleDocError;
     fn try_from(n: &'a RdfJsonNodeResult) -> Result<Self, Self::Error> {
@@ -1398,7 +1396,11 @@ impl<'a> TryFrom<&'a RdfJsonNodeResult> for Node<'a> {
 impl<'a> Literal<'a> {
     pub fn into_owned(self) -> Literal<'static> {
         match self {
-            Literal::Quoted { datatype, value, lang } => Literal::Quoted {
+            Literal::Quoted {
+                datatype,
+                value,
+                lang,
+            } => Literal::Quoted {
                 datatype: datatype.map(|d| Box::new((*d).into_owned())),
                 value: Cow::Owned(value.into_owned()),
                 lang: lang.map(|l| Cow::Owned(l.into_owned())),
@@ -1450,7 +1452,11 @@ impl<'a> TurtleDoc<'a> {
                 .into_iter()
                 .map(|(k, v)| (Cow::Owned(k.into_owned()), Cow::Owned(v.into_owned())))
                 .collect(),
-            statements: self.statements.into_iter().map(Statement::into_owned).collect(),
+            statements: self
+                .statements
+                .into_iter()
+                .map(Statement::into_owned)
+                .collect(),
         }
     }
 

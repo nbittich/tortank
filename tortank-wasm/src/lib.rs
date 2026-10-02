@@ -5,8 +5,7 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
 use tortank::turtle::turtle_doc::{
-    Node, RdfJsonNode, RdfJsonNodeResult, RdfJsonTriple, Statement,
-    TurtleDoc as NativeTurtleDoc,
+    Node, RdfJsonNode, RdfJsonNodeResult, RdfJsonTriple, Statement, TurtleDoc as NativeTurtleDoc,
 };
 
 // SAFETY: wasm32 without threads is single threaded.
@@ -54,12 +53,11 @@ pub struct WasmTurtleDoc {
 #[wasm_bindgen(js_class = TurtleDoc)]
 impl WasmTurtleDoc {
     #[wasm_bindgen(js_name = parse)]
-    pub fn parse(
-        input: &str,
-        well_known_prefix: Option<String>,
-    ) -> Result<WasmTurtleDoc, JsValue> {
+    pub fn parse(input: &str, well_known_prefix: Option<String>) -> Result<WasmTurtleDoc, JsValue> {
         let doc = NativeTurtleDoc::try_from((input, well_known_prefix)).map_err(js_err)?;
-        Ok(Self { doc: doc.into_owned() })
+        Ok(Self {
+            doc: doc.into_owned(),
+        })
     }
 
     #[wasm_bindgen(js_name = toTurtle)]
@@ -70,14 +68,18 @@ impl WasmTurtleDoc {
     #[wasm_bindgen(js_name = fromJSON)]
     pub fn from_json(value: JsValue) -> Result<WasmTurtleDoc, JsValue> {
         let triples: Vec<RdfJsonTriple> = from_js(value)?;
-        let doc = NativeTurtleDoc::try_from(&triples).map_err(js_err)?.into_owned();
+        let doc = NativeTurtleDoc::try_from(&triples)
+            .map_err(js_err)?
+            .into_owned();
         Ok(Self { doc })
     }
 
     #[wasm_bindgen(js_name = fromJSONString)]
     pub fn from_json_string(value: &str) -> Result<WasmTurtleDoc, JsValue> {
         let triples = RdfJsonTriple::from_json(value).map_err(js_err)?;
-        let doc = NativeTurtleDoc::try_from(&triples).map_err(js_err)?.into_owned();
+        let doc = NativeTurtleDoc::try_from(&triples)
+            .map_err(js_err)?
+            .into_owned();
         Ok(Self { doc })
     }
 
@@ -140,9 +142,16 @@ impl WasmTurtleDoc {
         predicate: Option<JsValue>,
         object: Option<JsValue>,
     ) -> Result<JsValue, JsValue> {
-        let (s, p, o) = (opt_from_js(subject)?, opt_from_js(predicate)?, opt_from_js(object)?);
+        let (s, p, o) = (
+            opt_from_js(subject)?,
+            opt_from_js(predicate)?,
+            opt_from_js(object)?,
+        );
         let (sn, pn, on) = (to_node(&s)?, to_node(&p)?, to_node(&o)?);
-        stmts_to_js(self.doc.list_statements(sn.as_ref(), pn.as_ref(), on.as_ref()))
+        stmts_to_js(
+            self.doc
+                .list_statements(sn.as_ref(), pn.as_ref(), on.as_ref()),
+        )
     }
 
     #[wasm_bindgen(js_name = add)]
@@ -171,9 +180,15 @@ impl WasmTurtleDoc {
         predicate: Option<JsValue>,
         object: Option<JsValue>,
     ) -> Result<usize, JsValue> {
-        let (s, p, o) = (opt_from_js(subject)?, opt_from_js(predicate)?, opt_from_js(object)?);
+        let (s, p, o) = (
+            opt_from_js(subject)?,
+            opt_from_js(predicate)?,
+            opt_from_js(object)?,
+        );
         let (sn, pn, on) = (to_node(&s)?, to_node(&p)?, to_node(&o)?);
-        Ok(self.doc.remove_statements(sn.as_ref(), pn.as_ref(), on.as_ref()))
+        Ok(self
+            .doc
+            .remove_statements(sn.as_ref(), pn.as_ref(), on.as_ref()))
     }
 
     #[wasm_bindgen(js_name = clear)]
@@ -187,19 +202,31 @@ impl WasmTurtleDoc {
         let stmt = Statement::try_from(&triple).map_err(js_err)?;
         Ok(!self
             .doc
-            .list_statements(Some(&stmt.subject), Some(&stmt.predicate), Some(&stmt.object))
+            .list_statements(
+                Some(&stmt.subject),
+                Some(&stmt.predicate),
+                Some(&stmt.object),
+            )
             .is_empty())
     }
 
     #[wasm_bindgen(js_name = difference)]
     pub fn difference(&self, other: &WasmTurtleDoc) -> Result<WasmTurtleDoc, JsValue> {
-        let doc = self.doc.difference(&other.doc).map_err(js_err)?.into_owned();
+        let doc = self
+            .doc
+            .difference(&other.doc)
+            .map_err(js_err)?
+            .into_owned();
         Ok(Self { doc })
     }
 
     #[wasm_bindgen(js_name = intersection)]
     pub fn intersection(&self, other: &WasmTurtleDoc) -> Result<WasmTurtleDoc, JsValue> {
-        let doc = self.doc.intersection(&other.doc).map_err(js_err)?.into_owned();
+        let doc = self
+            .doc
+            .intersection(&other.doc)
+            .map_err(js_err)?
+            .into_owned();
         Ok(Self { doc })
     }
 
@@ -217,7 +244,9 @@ impl WasmTurtleDoc {
 
     #[wasm_bindgen(js_name = clone)]
     pub fn clone_doc(&self) -> WasmTurtleDoc {
-        Self { doc: self.doc.clone() }
+        Self {
+            doc: self.doc.clone(),
+        }
     }
 }
 
@@ -225,7 +254,8 @@ impl WasmTurtleDoc {
     fn add_triple_inner(&mut self, triple: RdfJsonTriple) -> Result<bool, JsValue> {
         let stmt = Statement::try_from(&triple).map_err(js_err)?.into_owned();
         let before = self.doc.len();
-        self.doc.add_statement(stmt.subject, stmt.predicate, stmt.object);
+        self.doc
+            .add_statement(stmt.subject, stmt.predicate, stmt.object);
         Ok(self.doc.len() != before)
     }
 }
@@ -243,10 +273,18 @@ pub fn parse_ntriples_statement(input: &str) -> Result<JsValue, JsValue> {
         rest: &'a str,
         statement: RdfJsonTriple,
     }
-    to_js(&ResultValue { rest, statement: RdfJsonTriple::from(&statement) })
+    to_js(&ResultValue {
+        rest,
+        statement: RdfJsonTriple::from(&statement),
+    })
 }
 
-fn node(typ: &str, value: &str, datatype: Option<String>, lang: Option<String>) -> Result<JsValue, JsValue> {
+fn node(
+    typ: &str,
+    value: &str,
+    datatype: Option<String>,
+    lang: Option<String>,
+) -> Result<JsValue, JsValue> {
     to_js(&RdfJsonNodeResult::SingleNode(RdfJsonNode {
         typ: typ.into(),
         datatype,
@@ -256,12 +294,20 @@ fn node(typ: &str, value: &str, datatype: Option<String>, lang: Option<String>) 
 }
 
 #[wasm_bindgen(js_name = uri)]
-pub fn uri(value: &str) -> Result<JsValue, JsValue> { node("uri", value, None, None) }
+pub fn uri(value: &str) -> Result<JsValue, JsValue> {
+    node("uri", value, None, None)
+}
 
 #[wasm_bindgen(js_name = blankNode)]
-pub fn blank_node(value: &str) -> Result<JsValue, JsValue> { node("bnode", value, None, None) }
+pub fn blank_node(value: &str) -> Result<JsValue, JsValue> {
+    node("bnode", value, None, None)
+}
 
 #[wasm_bindgen(js_name = literal)]
-pub fn literal(value: &str, datatype: Option<String>, lang: Option<String>) -> Result<JsValue, JsValue> {
+pub fn literal(
+    value: &str,
+    datatype: Option<String>,
+    lang: Option<String>,
+) -> Result<JsValue, JsValue> {
     node("literal", value, datatype, lang)
 }
