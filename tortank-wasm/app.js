@@ -11,7 +11,7 @@ async function loadWasmContext() {
 /* ------------------------------------------------------------------ */
 /* Default example data                                               */
 /* ------------------------------------------------------------------ */
-const TURTLE_A = `@prefix ex: <http://example.com/> .
+const TURTLE_A = `@prefix ex: <http://example.org/> .
 @prefix foaf: <http://xmlns.com/foaf/0.1/> .
 
 ex:alice a foaf:Person ;
@@ -22,7 +22,7 @@ ex:bob a foaf:Person ;
   foaf:name "Bob" .
 `;
 
-const TURTLE_B = `@prefix ex: <http://example.com/> .
+const TURTLE_B = `@prefix ex: <http://example.org/> .
 @prefix foaf: <http://xmlns.com/foaf/0.1/> .
 
 ex:alice a foaf:Person ;
@@ -32,9 +32,9 @@ ex:carol a foaf:Person ;
   foaf:name "Carol" .
 `;
 
-const JSON_S = `{"type":"uri","value":"http://example.com/alice"}`;
+const JSON_S = `{"type":"uri","value":"http://example.org/alice"}`;
 const JSON_P = `{"type":"uri","value":"http://xmlns.com/foaf/0.1/knows"}`;
-const JSON_O = `{"type":"uri","value":"http://example.com/carol"}`;
+const JSON_O = `{"type":"uri","value":"http://example.org/bob"}`;
 const JSON_TRIPLE = `{
   "subject": ${JSON_S},
   "predicate": ${JSON_P},
@@ -55,7 +55,7 @@ const wellKnownField = {
   id: "wellKnownPrefix",
   label: "Well Known prefix",
   type: "url",
-  value: "http://example.com/.well-known/",
+  value: "http://example.org/.well-known/",
   help: "Well known prefix for Skolemisation (optional)",
   optional: true,
 };
@@ -71,7 +71,7 @@ const nodeField = (id, label, value = "", optional = true) => ({
   id,
   label,
   type: "textarea",
-  rows: 2,
+  rows: 7,
   value,
   optional,
   help: optional
@@ -98,20 +98,10 @@ const FUNCTIONS = {
     fields: [turtleField(), wellKnownField],
     run: (v, api) => api.parse(v.turtle).toTurtle(),
   },
-  "toString": {
-    help: "Statement serialization (N-Triples/Turtle style).",
-    fields: [turtleField(), wellKnownField],
-    run: (v, api) => api.parse(v.turtle).toString(),
-  },
   "toJSON": {
     help: "RDF-JSON representation.",
     fields: [turtleField(), wellKnownField],
     run: (v, api) => api.parse(v.turtle).toJSON(),
-  },
-  "toJSONString": {
-    help: "RDF-JSON as a string.",
-    fields: [turtleField(), wellKnownField],
-    run: (v, api) => api.parse(v.turtle).toJSONString(),
   },
   "fromJSON": {
     help: "Build a doc from the RDF-JSON returned by toJSON(), then output Turtle.",
@@ -123,7 +113,7 @@ const FUNCTIONS = {
         rows: 10,
         value: `[
   {
-    "subject": { "type": "uri", "value": "http://example.com/alice" },
+    "subject": { "type": "uri", "value": "http://example.org/alice" },
     "predicate": { "type": "uri", "value": "http://xmlns.com/foaf/0.1/name" },
     "object": { "type": "literal", "value": "Alice", "lang": "en" }
   }
@@ -132,20 +122,6 @@ const FUNCTIONS = {
     ],
     run: (v, api) => api.track(api.T.fromJSON(JSON.parse(v.json))).toTurtle(),
   },
-  "fromJSONString": {
-    help: "Same as fromJSON but takes the raw JSON string.",
-    fields: [
-      {
-        id: "json",
-        label: "RDF-JSON string",
-        type: "textarea",
-        rows: 10,
-        value: `[{"subject":{"type":"uri","value":"http://example.com/alice"},"predicate":{"type":"uri","value":"http://xmlns.com/foaf/0.1/name"},"object":{"type":"literal","value":"Alice","lang":"en"}}]`,
-      },
-    ],
-    run: (v, api) => api.track(api.T.fromJSONString(v.json)).toTurtle(),
-  },
-
   /* ---- inspection ---- */
   "statements": {
     help: "All statements as JS objects.",
@@ -182,7 +158,7 @@ const FUNCTIONS = {
       turtleField(),
       wellKnownField,
       termField("subject", "Subject", "ex:alice"),
-      termField("predicate", "Predicate", ""),
+      termField("predicate", "Predicate", "foaf:knows"),
       termField("object", "Object", ""),
     ],
     run: (v, api) =>
@@ -195,9 +171,9 @@ const FUNCTIONS = {
     fields: [
       turtleField(),
       wellKnownField,
-      nodeField("subject", "Subject (RDF-JSON)", JSON_S),
-      nodeField("predicate", "Predicate (RDF-JSON)", ""),
-      nodeField("object", "Object (RDF-JSON)", ""),
+      termField("subject", "Subject (RDF-JSON)", JSON_S),
+      termField("predicate", "Predicate (RDF-JSON)  ", JSON_P),
+      termField("object", "Object (RDF-JSON)", ""),
     ],
     run: (v, api) =>
       api
@@ -215,9 +191,9 @@ const FUNCTIONS = {
     fields: [
       turtleField(),
       wellKnownField,
-      nodeField("subject", "Subject (RDF-JSON)", JSON_S, false),
-      nodeField("predicate", "Predicate (RDF-JSON)", JSON_P, false),
-      nodeField("object", "Object (RDF-JSON)", JSON_O, false),
+      termField("subject", "Subject (RDF-JSON)", JSON_S, false),
+      termField("predicate", "Predicate (RDF-JSON)", JSON_P, false),
+      termField("object", "Object (RDF-JSON)", `{"type":"uri","value":"http://example.org/robert"}`, false),
     ],
     run: (v, api) => {
       const d = api.parse(v.turtle);
@@ -247,13 +223,13 @@ const FUNCTIONS = {
     fields: [
       turtleField(),
       wellKnownField,
-      nodeField("subject", "Subject (RDF-JSON)", JSON_S),
-      nodeField(
+      termField("subject", "Subject (RDF-JSON)", JSON_S),
+      termField(
         "predicate",
         "Predicate (RDF-JSON)",
         `{"type":"uri","value":"http://xmlns.com/foaf/0.1/knows"}`,
       ),
-      nodeField("object", "Object (RDF-JSON)", ""),
+      termField("object", "Object (RDF-JSON)", ""),
     ],
     run: (v, api) => {
       const d = api.parse(v.turtle);
@@ -297,40 +273,6 @@ const FUNCTIONS = {
       api.parse(v.turtle).intersection(api.parse(v.other)).toTurtle(),
   },
 
-  /* ---- standalone helpers ---- */
-  "parseNTriplesStatement": {
-    help: "Parse a single N-Triples statement. Returns { rest, statement } or null.",
-    fields: [
-      {
-        id: "input",
-        label: "N-Triples statement",
-        type: "textarea",
-        rows: 4,
-        value: `<http://example.com/alice> <http://xmlns.com/foaf/0.1/name> "Alice"@en .`,
-      },
-    ],
-    run: (v, api) => api.mod.parseNTriplesStatement(v.input),
-  },
-  "uri": {
-    help: "Build an RDF-JSON uri node.",
-    fields: [textField("value", "Value", "http://example.com/alice")],
-    run: (v, api) => api.mod.uri(v.value),
-  },
-  "blankNode": {
-    help: "Build an RDF-JSON blank node.",
-    fields: [textField("value", "Value", "b0")],
-    run: (v, api) => api.mod.blankNode(v.value),
-  },
-  "literal": {
-    help: "Build an RDF-JSON literal node.",
-    fields: [
-      textField("value", "Value", "Alice"),
-      textField("datatype", "Datatype", "", true),
-      textField("lang", "Language", "en", true),
-    ],
-    run: (v, api) =>
-      api.mod.literal(v.value, v.datatype || null, v.lang || null),
-  },
 };
 
 /* ------------------------------------------------------------------ */

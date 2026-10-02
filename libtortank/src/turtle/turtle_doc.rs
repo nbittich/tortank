@@ -167,7 +167,7 @@ pub enum Literal<'a> {
     Quoted {
         datatype: Option<Box<Node<'a>>>,
         value: Cow<'a, str>,
-        lang: Option<&'a str>,
+        lang: Option<Cow<'a, str>>,
     },
     Double(f64),
     Decimal(f32),
@@ -191,10 +191,10 @@ pub struct Statement<'a> {
     pub predicate: Node<'a>,
     pub object: Node<'a>,
 }
-#[derive(PartialEq, PartialOrd, Debug, Default)]
+#[derive(PartialEq, PartialOrd, Clone, Debug, Default)]
 pub struct TurtleDoc<'a> {
     well_known_prefix: Option<String>,
-    base: Option<&'a str>,
+    base: Option<Cow<'a, str>>,
     prefixes: BTreeMap<Cow<'a, str>, Cow<'a, str>>,
     statements: Vec<Statement<'a>>,
 }
@@ -269,7 +269,7 @@ impl<'a> TurtleDoc<'a> {
         &mut self,
         prefixes: BTreeMap<String, String>,
     ) -> Result<(), TurtleDocError> {
-        let base = self.base.unwrap_or("");
+        let base = self.base.as_deref().unwrap_or("");
         let mut prefixes: BTreeMap<Cow<str>, Cow<str>> = prefixes
             .into_iter()
             .map(|(k, v)| (Cow::Owned(k), Cow::Owned(v)))
@@ -372,7 +372,7 @@ impl<'a> TurtleDoc<'a> {
     ) -> Result<Vec<&'_ Statement<'_>>, TurtleDocError> {
         let mut statements: Vec<&Statement> = self.statements.iter().collect();
         let prefixes: BTreeMap<Cow<str>, Cow<str>> = self.prefixes.clone();
-        let base = self.base.map(Cow::Borrowed);
+        let base = self.base.clone();
 
         if let Some(subject) = subject {
             let (_, s) = parse_sub(&subject).map_err(|e| TurtleDocError {
@@ -536,7 +536,7 @@ impl<'a> TurtleDoc<'a> {
 
         statements.dedup();
         Ok(TurtleDoc {
-            base: context.base,
+            base: context.base.map(Cow::Borrowed),
             well_known_prefix: context.well_known_prefix,
             statements,
             prefixes: context.prefixes,
@@ -576,7 +576,7 @@ impl<'a> TurtleDoc<'a> {
             TurtleValue::Iri(Iri::Prefixed { prefix, local_name }) => {
                 let Some(prefix) = prefixes.get(prefix) else {
                     return Err(TurtleDocError {
-                        message: format!("prefix {prefix} unknown"),
+                        message: format!("prefix {prefix} unknown ({prefixes:?})"),
                     });
                 };
 
@@ -590,6 +590,7 @@ impl<'a> TurtleDoc<'a> {
                     value,
                     lang,
                 } => {
+                    let lang = lang.map(Cow::Borrowed);
                     let datatype = if let Some(dt) = datatype {
                         let dt = Self::simple_turtle_value_to_node(
                             TurtleValue::Iri(dt),
@@ -907,83 +908,83 @@ impl<'a> TryFrom<(&'a str, Option<String>)> for TurtleDoc<'a> {
         Self::new(statements, prefix)
     }
 }
+pub fn rjs_to_node(n: &RdfJsonNode) -> Result<Node<'_>, TurtleDocError> {
+    match n.typ.as_str() {
+        "uri" => Ok(Node::Iri(Cow::Borrowed(&n.value))),
+        "bnode" => Ok(Node::LabeledBlankNode(n.value.to_string())),
+        "literal" => match &n.datatype {
+            Some(dt) => match dt.as_str() {
+                XSD_DOUBLE => n
+                    .value
+                    .parse::<f64>()
+                    .map(|f| Node::Literal(Literal::Double(f)))
+                    .map_err(|e| TurtleDocError {
+                        message: e.to_string(),
+                    }),
+                XSD_DECIMAL => n
+                    .value
+                    .parse::<f32>()
+                    .map(|f| Node::Literal(Literal::Decimal(f)))
+                    .map_err(|e| TurtleDocError {
+                        message: e.to_string(),
+                    }),
+                XSD_INTEGER => n
+                    .value
+                    .parse::<i64>()
+                    .map(|f| Node::Literal(Literal::Integer(f)))
+                    .map_err(|e| TurtleDocError {
+                        message: e.to_string(),
+                    }),
+                XSD_BOOLEAN => n
+                    .value
+                    .parse::<bool>()
+                    .map(|f| Node::Literal(Literal::Boolean(f)))
+                    .map_err(|e| TurtleDocError {
+                        message: e.to_string(),
+                    }),
+                _ => Ok(Node::Literal(Literal::Quoted {
+                    datatype: Some(Box::new(Node::Iri(Cow::Borrowed(dt)))),
+                    value: Cow::Borrowed(&n.value),
+                    lang: if let Some(lang) = &n.lang {
+                        Some(lang.into())
+                    } else {
+                        None
+                    },
+                })),
+            },
+            None => Ok(Node::Literal(Literal::Quoted {
+                datatype: None,
+                value: Cow::Borrowed(&n.value),
+                lang: if let Some(lang) = &n.lang {
+                    Some(lang.into())
+                } else {
+                    None
+                },
+            })),
+        },
+        t => Err(TurtleDocError {
+            message: format!("type {t} unknown"),
+        }),
+    }
+}
+
+pub fn rnr_to_node(n: &RdfJsonNodeResult) -> Result<Node<'_>, TurtleDocError> {
+    match n {
+        RdfJsonNodeResult::SingleNode(node) => rjs_to_node(node),
+        RdfJsonNodeResult::ListNodes(rnr_nodes) => {
+            let mut nodes = vec![];
+            for node in rnr_nodes.iter() {
+                nodes.push(rnr_to_node(node)?);
+            }
+            Ok(Node::List(nodes))
+        }
+    }
+}
+
 impl<'a> TryFrom<&'a RdfJsonTriple> for Statement<'a> {
     type Error = TurtleDocError;
 
     fn try_from(value: &'a RdfJsonTriple) -> Result<Self, Self::Error> {
-        fn rjs_to_node(n: &RdfJsonNode) -> Result<Node<'_>, TurtleDocError> {
-            match n.typ.as_str() {
-                "uri" => Ok(Node::Iri(Cow::Borrowed(&n.value))),
-                "bnode" => Ok(Node::LabeledBlankNode(n.value.to_string())),
-                "literal" => match &n.datatype {
-                    Some(dt) => match dt.as_str() {
-                        XSD_DOUBLE => n
-                            .value
-                            .parse::<f64>()
-                            .map(|f| Node::Literal(Literal::Double(f)))
-                            .map_err(|e| TurtleDocError {
-                                message: e.to_string(),
-                            }),
-                        XSD_DECIMAL => n
-                            .value
-                            .parse::<f32>()
-                            .map(|f| Node::Literal(Literal::Decimal(f)))
-                            .map_err(|e| TurtleDocError {
-                                message: e.to_string(),
-                            }),
-                        XSD_INTEGER => n
-                            .value
-                            .parse::<i64>()
-                            .map(|f| Node::Literal(Literal::Integer(f)))
-                            .map_err(|e| TurtleDocError {
-                                message: e.to_string(),
-                            }),
-                        XSD_BOOLEAN => n
-                            .value
-                            .parse::<bool>()
-                            .map(|f| Node::Literal(Literal::Boolean(f)))
-                            .map_err(|e| TurtleDocError {
-                                message: e.to_string(),
-                            }),
-                        _ => Ok(Node::Literal(Literal::Quoted {
-                            datatype: Some(Box::new(Node::Iri(Cow::Borrowed(dt)))),
-                            value: Cow::Borrowed(&n.value),
-                            lang: if let Some(lang) = &n.lang {
-                                Some(lang.as_str())
-                            } else {
-                                None
-                            },
-                        })),
-                    },
-                    None => Ok(Node::Literal(Literal::Quoted {
-                        datatype: None,
-                        value: Cow::Borrowed(&n.value),
-                        lang: if let Some(lang) = &n.lang {
-                            Some(lang.as_str())
-                        } else {
-                            None
-                        },
-                    })),
-                },
-                t => Err(TurtleDocError {
-                    message: format!("type {t} unknown"),
-                }),
-            }
-        }
-
-        fn rnr_to_node(n: &RdfJsonNodeResult) -> Result<Node<'_>, TurtleDocError> {
-            match n {
-                RdfJsonNodeResult::SingleNode(node) => rjs_to_node(node),
-                RdfJsonNodeResult::ListNodes(rnr_nodes) => {
-                    let mut nodes = vec![];
-                    for node in rnr_nodes.iter() {
-                        nodes.push(rnr_to_node(node)?);
-                    }
-                    Ok(Node::List(nodes))
-                }
-            }
-        }
-
         let stmt = Statement {
             subject: rnr_to_node(&value.subject)?,
             predicate: rnr_to_node(&value.predicate)?,
@@ -1054,7 +1055,7 @@ impl From<&Node<'_>> for RdfJsonNodeResult {
                 } else {
                     None
                 },
-                lang: lang.map(|l| l.to_string()),
+                lang: lang.as_ref().map(|l| l.to_string()),
                 value: value.to_string(),
             }),
             Node::Literal(Literal::Integer(i)) => RdfJsonNodeResult::SingleNode(RdfJsonNode {
@@ -1382,5 +1383,94 @@ impl TurtleDoc<'_> {
                 })
                 .collect::<Vec<_>>()
                 .join("\n\n"))
+    }
+}
+
+
+
+impl<'a> TryFrom<&'a RdfJsonNodeResult> for Node<'a> {
+    type Error = TurtleDocError;
+    fn try_from(n: &'a RdfJsonNodeResult) -> Result<Self, Self::Error> {
+        rnr_to_node(n)
+    }
+}
+
+impl<'a> Literal<'a> {
+    pub fn into_owned(self) -> Literal<'static> {
+        match self {
+            Literal::Quoted { datatype, value, lang } => Literal::Quoted {
+                datatype: datatype.map(|d| Box::new((*d).into_owned())),
+                value: Cow::Owned(value.into_owned()),
+                lang: lang.map(|l| Cow::Owned(l.into_owned())),
+            },
+            Literal::Double(v) => Literal::Double(v),
+            Literal::Decimal(v) => Literal::Decimal(v),
+            Literal::Integer(v) => Literal::Integer(v),
+            Literal::Boolean(v) => Literal::Boolean(v),
+            Literal::Date(v) => Literal::Date(v),
+            Literal::DateTime(v) => Literal::DateTime(v),
+            Literal::Time(v) => Literal::Time(v),
+        }
+    }
+}
+
+impl<'a> Node<'a> {
+    pub fn into_owned(self) -> Node<'static> {
+        match self {
+            Node::Iri(c) => Node::Iri(Cow::Owned(c.into_owned())),
+            Node::Literal(l) => Node::Literal(l.into_owned()),
+            // Ref and plain nodes compare equal, so flattening is safe
+            Node::Ref(r) => match Arc::try_unwrap(r) {
+                Ok(n) => n.into_owned(),
+                Err(r) => (*r).clone().into_owned(),
+            },
+            Node::List(v) => Node::List(v.into_iter().map(Node::into_owned).collect()),
+            Node::LabeledBlankNode(s) => Node::LabeledBlankNode(s),
+        }
+    }
+}
+
+impl<'a> Statement<'a> {
+    pub fn into_owned(self) -> Statement<'static> {
+        Statement {
+            subject: self.subject.into_owned(),
+            predicate: self.predicate.into_owned(),
+            object: self.object.into_owned(),
+        }
+    }
+}
+
+impl<'a> TurtleDoc<'a> {
+    pub fn into_owned(self) -> TurtleDoc<'static> {
+        TurtleDoc {
+            well_known_prefix: self.well_known_prefix,
+            base: self.base.map(|b| Cow::Owned(b.into_owned())),
+            prefixes: self
+                .prefixes
+                .into_iter()
+                .map(|(k, v)| (Cow::Owned(k.into_owned()), Cow::Owned(v.into_owned())))
+                .collect(),
+            statements: self.statements.into_iter().map(Statement::into_owned).collect(),
+        }
+    }
+
+    /// Remove matching statements (None = wildcard). Returns number removed.
+    pub fn remove_statements(
+        &mut self,
+        s: Option<&Node>,
+        p: Option<&Node>,
+        o: Option<&Node>,
+    ) -> usize {
+        let before = self.statements.len();
+        self.statements.retain(|st| {
+            !(s.map_or(true, |n| &st.subject == n)
+                && p.map_or(true, |n| &st.predicate == n)
+                && o.map_or(true, |n| &st.object == n))
+        });
+        before - self.statements.len()
+    }
+
+    pub fn clear(&mut self) {
+        self.statements.clear();
     }
 }
