@@ -16,10 +16,10 @@ fn test_well_known_prefixed() {
 <http://danbri.org/foaf.rdf#danbri> a foaf:Person;
         foaf:name """Dan Brickley""".
     "#;
-    let doc: TurtleDoc<'_> = (ttl, None).try_into().unwrap();
+    let doc: TurtleDoc<'_> = (ttl, None, None).try_into().unwrap();
 
     assert_eq!(doc.len(), 6);
     let turtle = doc.as_turtle().unwrap();
-    let expected: TurtleDoc<'_> = (turtle.as_str(), None).try_into().unwrap();
+    let expected: TurtleDoc<'_> = (turtle.as_str(), None, None).try_into().unwrap();
     assert_eq!(doc.difference(&expected).unwrap().len(), 0);
 }

@@ -59,4 +59,28 @@ assert.ok(
 
 assert.ok(doc.difference(TurtleDoc.parse(turtle)), 0);
 
+
+
+
+const otherDoc = TurtleDoc.parse(`<https://example.com/a> <https://example.com/knows> [ <https://example.com/name> "Bob" ] .`,null, ()=>"1");
+
+const expectedMockedBNode = TurtleDoc.fromJSON([
+  {
+    subject: { type: 'bnode', value: '1' },
+    predicate: { type: 'uri', value: 'https://example.com/name' },
+    object: {
+      type: 'literal',
+      datatype: 'http://www.w3.org/2001/XMLSchema#string',
+      value: 'Bob'
+    }
+  },
+  {
+    subject: { type: 'uri', value: 'https://example.com/a' },
+    predicate: { type: 'uri', value: 'https://example.com/knows' },
+    object: { type: 'bnode', value: '1' }
+  }
+]);
+
+assert.ok(otherDoc.difference(expectedMockedBNode), 0);
+
 console.log("node wasm tests passed");

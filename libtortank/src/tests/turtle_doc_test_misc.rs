@@ -26,10 +26,10 @@ fn turtle_doc_add_test() {
     foaf:mbox <bob@example.com>] .
 
         "#;
-    let turtle1: TurtleDoc = (doc1, None).try_into().unwrap();
+    let turtle1: TurtleDoc = (doc1, None, None).try_into().unwrap();
     assert_eq!(5, turtle1.list_statements(None, None, None).len());
 
-    let turtle2: TurtleDoc = (doc2, None).try_into().unwrap();
+    let turtle2: TurtleDoc = (doc2, None, None).try_into().unwrap();
     assert_eq!(8, turtle2.list_statements(None, None, None).len());
 
     let turtle3 = turtle1 + turtle2;
@@ -57,7 +57,7 @@ fn turtle_doc_list_statements_test() {
     foaf:mbox <bob@example.com>] .
 
         "#;
-    let turtle: TurtleDoc = (doc, None).try_into().unwrap();
+    let turtle: TurtleDoc = (doc, None, None).try_into().unwrap();
     let statements = turtle.list_statements(None, None, Some(&Iri(Borrowed("bob@example.com"))));
     assert_eq!(1, statements.len());
     assert_eq!(
@@ -154,7 +154,7 @@ fn test_as_turtle_basic() {
     
     _:bardak <http://www.w3.org/2004/02/skos/core#prefLabel> "A11".
     "#;
-    let doc = TurtleDoc::try_from((r, None as Option<String>)).unwrap();
+    let doc = TurtleDoc::try_from((r, None as Option<String>, None)).unwrap();
     let turtle = doc.as_turtle().unwrap();
     println!("FIXME: make it a proper test!\n{turtle}")
 }

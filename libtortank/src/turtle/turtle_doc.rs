@@ -137,6 +137,7 @@ struct Context<'a> {
     base: Option<&'a str>,
     well_known_prefix: Option<String>,
     prefixes: BTreeMap<Cow<'a, str>, Cow<'a, str>>,
+    uuid_fn: fn() -> String,
 }
 
 #[derive(Serialize, PartialEq, Deserialize, Clone, Debug)]
@@ -251,6 +252,15 @@ impl<'a> TurtleDoc<'a> {
         well_known_prefix: Option<String>,
         buf: &'a mut String,
     ) -> Result<Self, TurtleDocError> {
+        Self::from_file_with_uuid_fn(path, well_known_prefix, buf, None)
+    }
+
+    pub fn from_file_with_uuid_fn(
+        path: impl Into<PathBuf>,
+        well_known_prefix: Option<String>,
+        buf: &'a mut String,
+        uuid_gen_fn: Option<fn() -> String>,
+    ) -> Result<Self, TurtleDocError> {
         let path = path.into();
         let extension = path.extension().and_then(|p| p.to_str());
         if !path.exists() || (extension != Some("ttl") && extension != Some("n3")) {
@@ -265,7 +275,7 @@ impl<'a> TurtleDoc<'a> {
         file.read_to_string(buf).map_err(|err| TurtleDocError {
             message: format!("cannot read file: {err}"),
         })?;
-        (buf.as_str(), well_known_prefix).try_into()
+        (buf.as_str(), well_known_prefix, uuid_gen_fn).try_into()
     }
     pub fn add_prefixes(
         &mut self,
@@ -343,6 +353,7 @@ impl<'a> TurtleDoc<'a> {
 
     pub fn parse_ntriples_statement(
         s: &'a str,
+        uuid_gen_fn: Option<fn() -> String>,
     ) -> Result<Option<(&'a str, Statement<'a>)>, TurtleDocError> {
         if s.trim().is_empty() {
             return Ok(None);
@@ -357,6 +368,7 @@ impl<'a> TurtleDoc<'a> {
                 base: None,
                 well_known_prefix: None,
                 prefixes: BTreeMap::new(),
+                uuid_fn: uuid_gen_fn.unwrap_or(get_uuid),
             },
             &mut res,
         )?;
@@ -495,6 +507,7 @@ impl<'a> TurtleDoc<'a> {
     fn new(
         turtle_values: Vec<TurtleValue<'a>>,
         well_known_prefix: Option<String>,
+        uuid_gen_fn: Option<fn() -> String>,
     ) -> Result<Self, TurtleDocError> {
         // let well_known_prefix =
         //     well_known_prefix.unwrap_or_else(|| DEFAULT_WELL_KNOWN_PREFIX.to_string());
@@ -502,6 +515,7 @@ impl<'a> TurtleDoc<'a> {
             base: None,
             well_known_prefix,
             prefixes: BTreeMap::new(),
+            uuid_fn: uuid_gen_fn.unwrap_or(get_uuid),
         };
         let mut statements: Vec<Statement> = vec![];
 
@@ -745,7 +759,7 @@ impl<'a> TurtleDoc<'a> {
                 }
             }
             TurtleValue::BNode(BlankNode::Unlabeled) => {
-                let uuid = get_uuid();
+                let uuid = (ctx.uuid_fn)();
                 if let Some(well_known_prefix) = ctx.well_known_prefix.as_ref() {
                     Ok(Node::Iri(Cow::Owned(format!("{well_known_prefix}{uuid}"))))
                 } else {
@@ -858,7 +872,7 @@ impl<'a> TurtleDoc<'a> {
 impl<'a> TryFrom<Vec<Statement<'a>>> for TurtleDoc<'a> {
     type Error = TurtleDocError;
     fn try_from(statements: Vec<Statement<'a>>) -> Result<Self, Self::Error> {
-        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()), None)?;
+        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()), None, None)?;
         doc.statements.extend(statements);
         Ok(doc)
     }
@@ -866,7 +880,7 @@ impl<'a> TryFrom<Vec<Statement<'a>>> for TurtleDoc<'a> {
 impl<'a> TryFrom<&'a Vec<RdfJsonTriple>> for TurtleDoc<'a> {
     type Error = TurtleDocError;
     fn try_from(triples: &'a Vec<RdfJsonTriple>) -> Result<Self, Self::Error> {
-        let mut doc = TurtleDoc::new(Vec::with_capacity(triples.len()), None)?;
+        let mut doc = TurtleDoc::new(Vec::with_capacity(triples.len()), None, None)?;
         for triple in triples {
             let s: Statement = triple.try_into()?;
             doc.statements.push(s);
@@ -877,7 +891,7 @@ impl<'a> TryFrom<&'a Vec<RdfJsonTriple>> for TurtleDoc<'a> {
 impl<'a> TryFrom<&'a Vec<Statement<'a>>> for TurtleDoc<'a> {
     type Error = TurtleDocError;
     fn try_from(statements: &Vec<Statement<'a>>) -> Result<Self, Self::Error> {
-        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()), None)?;
+        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()), None, None)?;
         let statements: Vec<Statement> = statements.to_vec();
         doc.statements.extend(statements);
         Ok(doc)
@@ -886,16 +900,18 @@ impl<'a> TryFrom<&'a Vec<Statement<'a>>> for TurtleDoc<'a> {
 impl<'a> TryFrom<Vec<&'a Statement<'a>>> for TurtleDoc<'a> {
     type Error = TurtleDocError;
     fn try_from(statements: Vec<&'a Statement<'a>>) -> Result<Self, Self::Error> {
-        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()), None)?;
+        let mut doc = TurtleDoc::new(Vec::with_capacity(statements.len()), None, None)?;
         let statements: Vec<Statement> = statements.into_iter().cloned().collect();
         doc.statements.extend(statements);
         Ok(doc)
     }
 }
-impl<'a> TryFrom<(&'a str, Option<String>)> for TurtleDoc<'a> {
+impl<'a> TryFrom<(&'a str, Option<String>, Option<fn() -> String>)> for TurtleDoc<'a> {
     type Error = TurtleDocError;
 
-    fn try_from((s, prefix): (&'a str, Option<String>)) -> Result<Self, Self::Error> {
+    fn try_from(
+        (s, prefix, uuid_fn): (&'a str, Option<String>, Option<fn() -> String>),
+    ) -> Result<Self, Self::Error> {
         let (res, statements) = statements(s).map_err(|err| TurtleDocError {
             message: format!("parsing error: {err}"),
         })?;
@@ -907,7 +923,7 @@ impl<'a> TryFrom<(&'a str, Option<String>)> for TurtleDoc<'a> {
                 message: format!("could not parse the doc completely: rest => {res}"),
             });
         }
-        Self::new(statements, prefix)
+        Self::new(statements, prefix, uuid_fn)
     }
 }
 pub fn rjs_to_node(n: &RdfJsonNode) -> Result<Node<'_>, TurtleDocError> {
@@ -947,21 +963,13 @@ pub fn rjs_to_node(n: &RdfJsonNode) -> Result<Node<'_>, TurtleDocError> {
                 _ => Ok(Node::Literal(Literal::Quoted {
                     datatype: Some(Box::new(Node::Iri(Cow::Borrowed(dt)))),
                     value: Cow::Borrowed(&n.value),
-                    lang: if let Some(lang) = &n.lang {
-                        Some(lang.into())
-                    } else {
-                        None
-                    },
+                    lang: n.lang.as_ref().map(|lang| lang.into()),
                 })),
             },
             None => Ok(Node::Literal(Literal::Quoted {
                 datatype: None,
                 value: Cow::Borrowed(&n.value),
-                lang: if let Some(lang) = &n.lang {
-                    Some(lang.into())
-                } else {
-                    None
-                },
+                lang: n.lang.as_ref().map(|lang| lang.into()),
             })),
         },
         t => Err(TurtleDocError {
@@ -1471,9 +1479,9 @@ impl<'a> TurtleDoc<'a> {
     ) -> usize {
         let before = self.statements.len();
         self.statements.retain(|st| {
-            !(s.map_or(true, |n| &st.subject == n)
-                && p.map_or(true, |n| &st.predicate == n)
-                && o.map_or(true, |n| &st.object == n))
+            !(s.is_none_or(|n| &st.subject == n)
+                && p.is_none_or(|n| &st.predicate == n)
+                && o.is_none_or(|n| &st.object == n))
         });
         before - self.statements.len()
     }

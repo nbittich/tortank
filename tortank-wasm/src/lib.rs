@@ -2,16 +2,64 @@
 
 use lol_alloc::{AssumeSingleThreaded, FreeListAllocator};
 use serde::{Deserialize, Serialize};
-use wasm_bindgen::prelude::*;
-
+use std::cell::RefCell;
 use tortank::turtle::turtle_doc::{
     Node, RdfJsonNode, RdfJsonNodeResult, RdfJsonTriple, Statement, TurtleDoc as NativeTurtleDoc,
 };
+use wasm_bindgen::prelude::*;
 
 // SAFETY: wasm32 without threads is single threaded.
 #[global_allocator]
 static ALLOCATOR: AssumeSingleThreaded<FreeListAllocator> =
     unsafe { AssumeSingleThreaded::new(FreeListAllocator::new()) };
+
+thread_local! {
+    static JS_UUID_FN: RefCell<Option<js_sys::Function>> = const { RefCell::new(None) };
+        static JS_UUID_ERR: RefCell<Option<JsValue>> = const { RefCell::new(None) };
+}
+
+fn js_uuid_gen() -> String {
+    let f = JS_UUID_FN.with(|f| f.borrow().clone());
+    let res = match f {
+        Some(f) => f.call0(&JsValue::NULL).and_then(|v| {
+            v.as_string()
+                .ok_or_else(|| js_err("uuid function must return a string"))
+        }),
+        None => Err(js_err("uuid function not registered")),
+    };
+    res.unwrap_or_else(|e| {
+        JS_UUID_ERR.with(|slot| {
+            slot.borrow_mut().get_or_insert(e);
+        });
+        String::new()
+    })
+}
+
+fn take_uuid_err() -> Result<(), JsValue> {
+    match JS_UUID_ERR.with(|slot| slot.borrow_mut().take()) {
+        Some(e) => Err(e),
+        None => Ok(()),
+    }
+}
+/// Registers the JS function for the lifetime of the guard (cleared on drop).
+struct UuidFnGuard;
+
+impl Drop for UuidFnGuard {
+    fn drop(&mut self) {
+        JS_UUID_FN.with(|f| *f.borrow_mut() = None);
+        JS_UUID_ERR.with(|e| *e.borrow_mut() = None);
+    }
+}
+
+fn install_uuid_fn(f: Option<js_sys::Function>) -> (Option<fn() -> String>, Option<UuidFnGuard>) {
+    match f {
+        Some(f) => {
+            JS_UUID_FN.with(|slot| *slot.borrow_mut() = Some(f));
+            (Some(js_uuid_gen as fn() -> String), Some(UuidFnGuard))
+        }
+        None => (None, None),
+    }
+}
 
 fn js_err<E: std::fmt::Display>(err: E) -> JsValue {
     js_sys::Error::new(&err.to_string()).into()
@@ -53,8 +101,15 @@ pub struct WasmTurtleDoc {
 #[wasm_bindgen(js_class = TurtleDoc)]
 impl WasmTurtleDoc {
     #[wasm_bindgen(js_name = parse)]
-    pub fn parse(input: &str, well_known_prefix: Option<String>) -> Result<WasmTurtleDoc, JsValue> {
-        let doc = NativeTurtleDoc::try_from((input, well_known_prefix)).map_err(js_err)?;
+    pub fn parse(
+        input: &str,
+        well_known_prefix: Option<String>,
+        uuid_fn: Option<js_sys::Function>,
+    ) -> Result<WasmTurtleDoc, JsValue> {
+        let (uuid_fn, _guard) = install_uuid_fn(uuid_fn);
+        let res = NativeTurtleDoc::try_from((input, well_known_prefix, uuid_fn));
+        take_uuid_err()?;
+        let doc = res.map_err(js_err)?;
         Ok(Self {
             doc: doc.into_owned(),
         })
@@ -261,10 +316,14 @@ impl WasmTurtleDoc {
 }
 
 #[wasm_bindgen(js_name = parseNTriplesStatement)]
-pub fn parse_ntriples_statement(input: &str) -> Result<JsValue, JsValue> {
-    let Some((rest, statement)) =
-        NativeTurtleDoc::parse_ntriples_statement(input).map_err(js_err)?
-    else {
+pub fn parse_ntriples_statement(
+    input: &str,
+    uuid_fn: Option<js_sys::Function>,
+) -> Result<JsValue, JsValue> {
+    let (uuid_fn, _guard) = install_uuid_fn(uuid_fn);
+    let parsed = NativeTurtleDoc::parse_ntriples_statement(input, uuid_fn);
+    take_uuid_err()?;
+    let Some((rest, statement)) = parsed.map_err(js_err)? else {
         return Ok(JsValue::NULL);
     };
 

@@ -23,7 +23,7 @@ ex:bob
 
 #[wasm_bindgen_test]
 fn serializes_as_turtle() {
-    let doc = WasmTurtleDoc::parse(TTL, None).unwrap();
+    let doc = WasmTurtleDoc::parse(TTL, None, None).unwrap();
 
     let turtle = doc.to_turtle().unwrap();
 
@@ -34,7 +34,7 @@ fn serializes_as_turtle() {
 
 #[wasm_bindgen_test]
 fn parses_turtle() {
-    let doc = WasmTurtleDoc::parse(TTL, None).unwrap();
+    let doc = WasmTurtleDoc::parse(TTL, None, None).unwrap();
 
     assert!(!doc.is_empty());
     assert_eq!(doc.len(), 5);
@@ -43,7 +43,7 @@ fn parses_turtle() {
 
 #[wasm_bindgen_test]
 fn empty_document() {
-    let doc = WasmTurtleDoc::parse("", None).unwrap();
+    let doc = WasmTurtleDoc::parse("", None, None).unwrap();
 
     assert!(doc.is_empty());
     assert_eq!(doc.len(), 0);
@@ -51,7 +51,7 @@ fn empty_document() {
 
 #[wasm_bindgen_test]
 fn rdf_json_roundtrip() {
-    let doc = WasmTurtleDoc::parse(TTL, None).unwrap();
+    let doc = WasmTurtleDoc::parse(TTL, None, None).unwrap();
 
     let json = doc.to_json().unwrap();
     let restored = WasmTurtleDoc::from_json(json).unwrap();
@@ -77,6 +77,7 @@ fn finds_difference() {
             "Bob" .
         "#,
         None,
+        None,
     )
     .unwrap();
 
@@ -87,6 +88,7 @@ fn finds_difference() {
             "Alice" .
         "#,
         None,
+        None,
     )
     .unwrap();
 
@@ -96,7 +98,7 @@ fn finds_difference() {
 }
 #[wasm_bindgen_test]
 fn match_uses_document_prefixes() {
-    let doc = WasmTurtleDoc::parse(TTL, None).unwrap();
+    let doc = WasmTurtleDoc::parse(TTL, None, None).unwrap();
 
     // `ex:` is declared in TTL; this only works because the parsed doc is kept.
     let result = doc
@@ -108,7 +110,7 @@ fn match_uses_document_prefixes() {
 }
 #[wasm_bindgen_test]
 fn match_nodes_and_contains() {
-    let doc = WasmTurtleDoc::parse(TTL, None).unwrap();
+    let doc = WasmTurtleDoc::parse(TTL, None, None).unwrap();
 
     let result = doc
         .match_nodes(Some(uri("https://example.com/bob").unwrap()), None, None)
@@ -145,13 +147,13 @@ fn match_nodes_and_contains() {
 }
 #[wasm_bindgen_test]
 fn clear_empties_document() {
-    let mut doc = WasmTurtleDoc::parse(TTL, None).unwrap();
+    let mut doc = WasmTurtleDoc::parse(TTL, None, None).unwrap();
     doc.clear();
     assert!(doc.is_empty());
 }
 #[wasm_bindgen_test]
 fn json_string_roundtrip() {
-    let doc = WasmTurtleDoc::parse(TTL, None).unwrap();
+    let doc = WasmTurtleDoc::parse(TTL, None, None).unwrap();
 
     let json = doc.to_json_string().unwrap();
     let restored = WasmTurtleDoc::from_json_string(&json).unwrap();
@@ -168,6 +170,7 @@ fn finds_intersection() {
             "Alice" .
         "#,
         None,
+        None,
     )
     .unwrap();
 
@@ -182,6 +185,7 @@ fn finds_intersection() {
             "Bob" .
         "#,
         None,
+        None,
     )
     .unwrap();
 
@@ -191,7 +195,7 @@ fn finds_intersection() {
 }
 #[wasm_bindgen_test]
 fn duplicate_add_is_ignored() {
-    let mut doc = WasmTurtleDoc::parse("", None).unwrap();
+    let mut doc = WasmTurtleDoc::parse("", None, None).unwrap();
 
     let s = uri("https://example.com/alice").unwrap();
     let p = uri("https://example.com/name").unwrap();
@@ -212,6 +216,7 @@ fn remove_statement() {
             <https://example.com/name>
             "Alice" .
         "#,
+        None,
         None,
     )
     .unwrap();
@@ -235,6 +240,7 @@ fn all_subjects_are_unique() {
             42 .
         "#,
         None,
+        None,
     )
     .unwrap();
 
@@ -247,16 +253,70 @@ fn all_subjects_are_unique() {
 
 #[wasm_bindgen_test]
 fn parse_ntriples() {
-    let result =
-        parse_ntriples_statement(r#"<https://example.com/a> <https://example.com/name> "Alice" ."#)
-            .unwrap();
+    let result = parse_ntriples_statement(
+        r#"<https://example.com/a> <https://example.com/name> "Alice" ."#,
+        None,
+    )
+    .unwrap();
 
     assert!(!result.is_null());
 }
 
 #[wasm_bindgen_test]
 fn invalid_turtle_throws() {
-    let result = WasmTurtleDoc::parse("this definitely isn't turtle {", None);
+    let result = WasmTurtleDoc::parse("this definitely isn't turtle {", None, None);
+
+    assert!(result.is_err());
+}
+
+#[wasm_bindgen_test]
+fn custom_uuid_fn_names_blank_nodes() {
+    let uuid_fn = js_sys::Function::new_no_args("return '1'");
+
+    let doc = WasmTurtleDoc::parse(
+        r#"<https://example.com/a> <https://example.com/knows> [ <https://example.com/name> "Bob" ] ."#,
+        None,
+        Some(uuid_fn),
+    )
+    .unwrap();
+
+    let triples: Vec<serde_json::Value> =
+        serde_wasm_bindgen::from_value(doc.to_json().unwrap()).unwrap();
+
+    let dump = serde_json::to_string_pretty(&triples).unwrap();
+
+    assert!(
+        triples.iter().any(|t| t["object"]["type"] == "bnode"),
+        "no bnode object found, triples were:\n{dump}"
+    );
+
+    assert!(
+        triples.iter().any(|t| t["object"]["type"] == "bnode"
+            && t["object"]["value"]
+                .as_str()
+                .is_some_and(|v| v.ends_with('1'))),
+        "bnode value doesn't end with 1, triples were:\n{dump}"
+    );
+    // `_:1 name "Bob"`
+    assert!(
+        triples
+            .iter()
+            .any(|t| t["subject"]["type"] == "bnode" && t["subject"]["value"] == "1")
+    );
+
+    // and it shows up as `_:1` in the turtle output
+    assert!(doc.to_turtle().unwrap().contains("_:1"));
+}
+
+#[wasm_bindgen_test]
+fn uuid_fn_returning_non_string_throws() {
+    let uuid_fn = js_sys::Function::new_no_args("return 1");
+
+    let result = WasmTurtleDoc::parse(
+        r#"<https://example.com/a> <https://example.com/knows> [ <https://example.com/name> "Bob" ] ."#,
+        None,
+        Some(uuid_fn),
+    );
 
     assert!(result.is_err());
 }
