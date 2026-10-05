@@ -115,7 +115,9 @@ const PREFIX_OR_NONE: fn(&str, &mut HashMap<&'static str, &'static str>) -> Opti
             if s.contains(uri) {
                 used_prefixes.insert(p, uri);
                 let replaced = s.replace(uri, p);
-                if replaced == SPECIAL_TTL_RDF_TYPE_PREFIX.0 {
+                if replaced.contains(":.") {
+                    None
+                } else if replaced == SPECIAL_TTL_RDF_TYPE_PREFIX.0 {
                     Some(SPECIAL_TTL_RDF_TYPE_PREFIX.1.to_string())
                 } else {
                     Some(replaced)
