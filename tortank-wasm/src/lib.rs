@@ -15,7 +15,7 @@ static ALLOCATOR: AssumeSingleThreaded<FreeListAllocator> =
 
 thread_local! {
     static JS_UUID_FN: RefCell<Option<js_sys::Function>> = const { RefCell::new(None) };
-        static JS_UUID_ERR: RefCell<Option<JsValue>> = const { RefCell::new(None) };
+    static JS_UUID_ERR: RefCell<Option<JsValue>> = const { RefCell::new(None) };
 }
 
 fn js_uuid_gen() -> String {

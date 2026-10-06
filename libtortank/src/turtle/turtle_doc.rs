@@ -930,7 +930,7 @@ pub fn rjs_to_node(n: &RdfJsonNode) -> Result<Node<'_>, TurtleDocError> {
     match n.typ.as_str() {
         "uri" => Ok(Node::Iri(Cow::Borrowed(&n.value))),
         "bnode" => Ok(Node::LabeledBlankNode(n.value.to_string())),
-        "literal" => match &n.datatype {
+        "literal" | "typed-literal" => match &n.datatype {
             Some(dt) => match dt.as_str() {
                 XSD_DOUBLE => n
                     .value
