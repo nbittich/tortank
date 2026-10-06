@@ -53,10 +53,12 @@ const SPECIAL_TTL_RDF_TYPE_PREFIX: (&str, &str) = ("rdf:type", "a");
 const PREFIX_XSD: (&str, &str) = ("xsd:", "http://www.w3.org/2001/XMLSchema#");
 const XSD_DATATYPE_FN: fn(&str) -> String = |s| format!("^^xsd:{s}");
 const PREFIXES: &[(&str, &str)] = &[
+    PREFIX_XSD,
     ("rdf:", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"),
     ("org:", "http://www.w3.org/ns/org#"),
     ("rdfs:", "http://www.w3.org/2000/01/rdf-schema#"),
-    PREFIX_XSD,
+    ("nie:","http://www.semanticdesktop.org/ontologies/2007/01/19/nie#"),
+    ("nfo:","http://www.semanticdesktop.org/ontologies/2007/03/22/nfo#"),
     ("foaf:", "http://xmlns.com/foaf/0.1/"),
     ("dc:", "http://purl.org/dc/elements/1.1/"),
     ("dcterms:", "http://purl.org/dc/terms/"),
