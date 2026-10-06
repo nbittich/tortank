@@ -1,6 +1,16 @@
 use std::borrow::Cow;
 
-use crate::triple_common_parser::{Iri, Literal, iri, literal::string_literal};
+use crate::triple_common_parser::{
+    Iri, Literal, iri,
+    literal::{parse_number, string_literal},
+};
+
+#[test]
+fn number_followed_by_terminator() {
+    let (rest, n) = parse_number("32654.").unwrap();
+    assert_eq!(n, Literal::Integer(32654));
+    assert_eq!(rest, ".");
+}
 
 #[test]
 fn test_parse_iri_escaped() {

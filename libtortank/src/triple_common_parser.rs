@@ -152,15 +152,27 @@ pub(crate) mod literal {
     }
 
     pub(crate) fn parse_number(s: &'_ str) -> ParserResult<'_, Literal<'_>> {
-        map_parser(
+        use nom::character::complete::{char, digit1, one_of};
+        use nom::combinator::{not, recognize};
+        use nom::sequence::pair;
+        let integer = map(
+            terminated(
+                I64,
+                not(alt((
+                    recognize(pair(char('.'), digit1)),
+                    recognize(one_of("eE")),
+                ))),
+            ),
+            Literal::Integer,
+        );
+        let float_or_double = map_parser(
             recognize_float,
             alt((
-                map(all_consuming(I64), Literal::Integer),
                 map(all_consuming(float), Literal::Decimal),
                 map(all_consuming(double), Literal::Double),
             )),
-        )
-        .parse(s)
+        );
+        alt((integer, float_or_double)).parse(s)
     }
 
     #[allow(unused)]
