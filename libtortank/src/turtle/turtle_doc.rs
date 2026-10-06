@@ -21,10 +21,8 @@ use std::fmt::{Display, Formatter};
 use std::fs::{File, OpenOptions};
 use std::io::Read;
 use std::io::{BufReader, prelude::*};
-use std::num::{ParseFloatError, ParseIntError};
 use std::ops::Add;
 use std::path::PathBuf;
-use std::str::ParseBoolError;
 use std::sync::Arc;
 
 use super::turtle_parser::ntriple_statement;
@@ -619,127 +617,16 @@ impl<'a> TurtleDoc<'a> {
                 } => {
                     let lang = lang.map(Cow::Borrowed);
                     let datatype = if let Some(dt) = datatype {
-                        let dt = Self::simple_turtle_value_to_node(
+                        Some(Self::simple_turtle_value_to_node(
                             TurtleValue::Iri(dt),
                             base,
                             prefixes,
                             allow_literals,
-                        )?;
-                        Some(dt)
+                        )?)
                     } else {
                         None
                     };
-                    match datatype {
-                        Some(Node::Iri(iri)) if iri == XSD_BOOLEAN => {
-                            Ok(Node::Literal(Literal::Boolean(value.parse().map_err(
-                                |e: ParseBoolError| TurtleDocError {
-                                    message: e.to_string(),
-                                },
-                            )?)))
-                        }
-                        Some(Node::Iri(iri)) if iri == XSD_INTEGER => {
-                            Ok(Node::Literal(Literal::Integer(value.parse().map_err(
-                                |e: ParseIntError| TurtleDocError {
-                                    message: e.to_string(),
-                                },
-                            )?)))
-                        }
-                        Some(Node::Iri(iri)) if iri == XSD_DECIMAL => {
-                            Ok(Node::Literal(Literal::Decimal(value.parse().map_err(
-                                |e: ParseFloatError| TurtleDocError {
-                                    message: e.to_string(),
-                                },
-                            )?)))
-                        }
-                        Some(Node::Iri(iri)) if iri == XSD_DOUBLE => {
-                            Ok(Node::Literal(Literal::Double(value.parse().map_err(
-                                |e: ParseFloatError| TurtleDocError {
-                                    message: e.to_string(),
-                                },
-                            )?)))
-                        }
-                        Some(Node::Iri(ref iri)) if iri == XSD_DATE => {
-                            let parse_from_str = DateTime::parse_from_str;
-                            let parse_from_str_no_tz = NaiveDateTime::parse_from_str;
-
-                            let date = DATE_FORMATS
-                                .iter()
-                                .find_map(|f| parse_from_str(&value, f).ok())
-                                .or_else(|| DateTime::parse_from_rfc3339(&value).ok())
-                                .or_else(|| {
-                                    DATE_FORMATS
-                                        .iter()
-                                        .find_map(|f| parse_from_str_no_tz(&value, f).ok())
-                                        .and_then(|f| {
-                                            f.and_local_timezone(Local::now().timezone())
-                                                .map(|f| f.fixed_offset())
-                                                .latest()
-                                        })
-                                });
-
-                            if let Some(date) = date {
-                                Ok(Node::Literal(Literal::Date(date)))
-                            } else {
-                                Ok(Node::Literal(Literal::Quoted {
-                                    datatype: datatype.map(Box::new),
-                                    lang,
-                                    value,
-                                }))
-                            }
-                        }
-
-                        Some(Node::Iri(ref iri)) if iri == XSD_TIME => {
-                            let parse_from_str = DateTime::parse_from_str;
-
-                            let date = TIME_FORMATS
-                                .iter()
-                                .find_map(|f| parse_from_str(&value, f).ok());
-
-                            if let Some(date) = date {
-                                Ok(Node::Literal(Literal::Time(date)))
-                            } else {
-                                Ok(Node::Literal(Literal::Quoted {
-                                    datatype: datatype.map(Box::new),
-                                    lang,
-                                    value,
-                                }))
-                            }
-                        }
-                        Some(Node::Iri(ref iri)) if iri == XSD_DATE_TIME => {
-                            let parse_from_str = DateTime::parse_from_str;
-
-                            let parse_from_str_no_tz = NaiveDateTime::parse_from_str;
-                            let date = DATE_FORMATS
-                                .iter()
-                                .find_map(|f| parse_from_str(&value, f).ok())
-                                .or_else(|| DateTime::parse_from_rfc3339(&value).ok())
-                                .or_else(|| {
-                                    DATE_FORMATS
-                                        .iter()
-                                        .find_map(|f| parse_from_str_no_tz(&value, f).ok())
-                                        .and_then(|f| {
-                                            f.and_local_timezone(Local::now().timezone())
-                                                .map(|f| f.fixed_offset())
-                                                .latest()
-                                        })
-                                });
-
-                            if let Some(date) = date {
-                                Ok(Node::Literal(Literal::DateTime(date)))
-                            } else {
-                                Ok(Node::Literal(Literal::Quoted {
-                                    datatype: datatype.map(Box::new),
-                                    lang,
-                                    value,
-                                }))
-                            }
-                        }
-                        dt => Ok(Node::Literal(Literal::Quoted {
-                            datatype: dt.map(Box::new),
-                            lang,
-                            value,
-                        })),
-                    }
+                    typed_literal(value, datatype, lang)
                 }
                 ASTLiteral::Boolean(b) => Ok(Node::Literal(Literal::Boolean(b))),
                 ASTLiteral::Double(b) => Ok(Node::Literal(Literal::Double(b))),
@@ -941,48 +828,11 @@ pub fn rjs_to_node(n: &RdfJsonNode) -> Result<Node<'_>, TurtleDocError> {
     match n.typ.as_str() {
         "uri" => Ok(Node::Iri(Cow::Borrowed(&n.value))),
         "bnode" => Ok(Node::LabeledBlankNode(n.value.to_string())),
-        "literal" | "typed-literal" => match &n.datatype {
-            Some(dt) => match dt.as_str() {
-                XSD_DOUBLE => n
-                    .value
-                    .parse::<f64>()
-                    .map(|f| Node::Literal(Literal::Double(f)))
-                    .map_err(|e| TurtleDocError {
-                        message: e.to_string(),
-                    }),
-                XSD_DECIMAL => n
-                    .value
-                    .parse::<f32>()
-                    .map(|f| Node::Literal(Literal::Decimal(f)))
-                    .map_err(|e| TurtleDocError {
-                        message: e.to_string(),
-                    }),
-                XSD_INTEGER => n
-                    .value
-                    .parse::<i64>()
-                    .map(|f| Node::Literal(Literal::Integer(f)))
-                    .map_err(|e| TurtleDocError {
-                        message: e.to_string(),
-                    }),
-                XSD_BOOLEAN => n
-                    .value
-                    .parse::<bool>()
-                    .map(|f| Node::Literal(Literal::Boolean(f)))
-                    .map_err(|e| TurtleDocError {
-                        message: e.to_string(),
-                    }),
-                _ => Ok(Node::Literal(Literal::Quoted {
-                    datatype: Some(Box::new(Node::Iri(Cow::Borrowed(dt)))),
-                    value: Cow::Borrowed(&n.value),
-                    lang: n.lang.as_ref().map(|lang| lang.into()),
-                })),
-            },
-            None => Ok(Node::Literal(Literal::Quoted {
-                datatype: None,
-                value: Cow::Borrowed(&n.value),
-                lang: n.lang.as_ref().map(|lang| lang.into()),
-            })),
-        },
+        "literal" | "typed-literal" => typed_literal(
+            Cow::Borrowed(&n.value),
+            n.datatype.as_deref().map(|dt| Node::Iri(Cow::Borrowed(dt))),
+            n.lang.as_deref().map(Cow::Borrowed),
+        ),
         t => Err(TurtleDocError {
             message: format!("type {t} unknown"),
         }),
@@ -1112,9 +962,9 @@ impl From<&Node<'_>> for RdfJsonNodeResult {
             }),
             Node::Literal(Literal::DateTime(d)) => RdfJsonNodeResult::SingleNode(RdfJsonNode {
                 typ: typ_literal,
-                datatype: Some(XSD_DATE.to_string()),
+                datatype: Some(XSD_DATE_TIME.to_string()),
                 lang: None,
-                value: d.format("%+").to_string(),
+                value: d.to_rfc3339_opts(SecondsFormat::Millis, true),
             }),
 
             Node::Literal(Literal::Time(d)) => RdfJsonNodeResult::SingleNode(RdfJsonNode {
@@ -1499,5 +1349,65 @@ impl<'a> TurtleDoc<'a> {
 
     pub fn clear(&mut self) {
         self.statements.clear();
+    }
+}
+
+fn parse_lit<T: std::str::FromStr>(value: &str) -> Result<T, TurtleDocError>
+where
+    T::Err: std::fmt::Display,
+{
+    value.parse::<T>().map_err(|e| TurtleDocError {
+        message: e.to_string(),
+    })
+}
+
+fn parse_date_time(value: &str) -> Option<DateTime<FixedOffset>> {
+    DATE_FORMATS
+        .iter()
+        .find_map(|f| DateTime::parse_from_str(value, f).ok())
+        .or_else(|| DateTime::parse_from_rfc3339(value).ok())
+        .or_else(|| {
+            DATE_FORMATS
+                .iter()
+                .find_map(|f| NaiveDateTime::parse_from_str(value, f).ok())
+                .and_then(|n| {
+                    n.and_local_timezone(Local::now().timezone())
+                        .map(|d| d.fixed_offset())
+                        .latest()
+                })
+        })
+}
+
+fn typed_literal<'a>(
+    value: Cow<'a, str>,
+    datatype: Option<Node<'a>>,
+    lang: Option<Cow<'a, str>>,
+) -> Result<Node<'a>, TurtleDocError> {
+    let dt: Option<&str> = match &datatype {
+        Some(Node::Iri(iri)) => Some(iri.as_ref()),
+        _ => None,
+    };
+
+    let parsed: Option<Literal<'a>> = match dt {
+        Some(XSD_BOOLEAN) => Some(Literal::Boolean(parse_lit(&value)?)),
+        Some(XSD_INTEGER) => Some(Literal::Integer(parse_lit(&value)?)),
+        Some(XSD_DECIMAL) => Some(Literal::Decimal(parse_lit(&value)?)),
+        Some(XSD_DOUBLE) => Some(Literal::Double(parse_lit(&value)?)),
+        Some(XSD_DATE) => parse_date_time(&value).map(Literal::Date),
+        Some(XSD_DATE_TIME) => parse_date_time(&value).map(Literal::DateTime),
+        Some(XSD_TIME) => TIME_FORMATS
+            .iter()
+            .find_map(|f| DateTime::parse_from_str(&value, f).ok())
+            .map(Literal::Time),
+        _ => None,
+    };
+
+    match parsed {
+        Some(l) => Ok(Node::Literal(l)),
+        None => Ok(Node::Literal(Literal::Quoted {
+            datatype: datatype.map(Box::new),
+            value,
+            lang,
+        })),
     }
 }

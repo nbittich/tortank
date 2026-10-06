@@ -1,4 +1,4 @@
-use crate::turtle::turtle_doc::TurtleDoc;
+use crate::turtle::turtle_doc::{RdfJsonTriple, TurtleDoc};
 
 #[test]
 fn test_well_known_prefixed() {
@@ -22,4 +22,25 @@ fn test_well_known_prefixed() {
     let turtle = doc.as_turtle().unwrap();
     let expected: TurtleDoc<'_> = (turtle.as_str(), None, None).try_into().unwrap();
     assert_eq!(doc.difference(&expected).unwrap().len(), 0);
+}
+
+#[test]
+fn json_literals_match_parsed_turtle() {
+    let json = r#"[
+      {"subject":{"type":"uri","value":"http://a"},"predicate":{"type":"uri","value":"http://b"},
+       "object":{"type":"literal","datatype":"http://www.w3.org/2001/XMLSchema#dateTime","value":"2022-01-20T00:00:00Z"}},
+      {"subject":{"type":"uri","value":"http://a"},"predicate":{"type":"uri","value":"http://c"},
+       "object":{"type":"literal","datatype":"http://www.w3.org/2001/XMLSchema#string","value":"x"}}
+    ]"#;
+    let triples = RdfJsonTriple::from_json(json).unwrap();
+    let from_json = TurtleDoc::try_from(&triples).unwrap();
+    let from_ttl = TurtleDoc::try_from((
+        r#"<http://a> <http://b> "2022-01-20T00:00:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+                      <http://c> "x"."#,
+        None,
+        None,
+    ))
+    .unwrap();
+    assert!(from_json.difference(&from_ttl).unwrap().is_empty());
+    assert!(from_ttl.difference(&from_json).unwrap().is_empty());
 }
