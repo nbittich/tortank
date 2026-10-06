@@ -57,8 +57,14 @@ const PREFIXES: &[(&str, &str)] = &[
     ("rdf:", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"),
     ("org:", "http://www.w3.org/ns/org#"),
     ("rdfs:", "http://www.w3.org/2000/01/rdf-schema#"),
-    ("nie:","http://www.semanticdesktop.org/ontologies/2007/01/19/nie#"),
-    ("nfo:","http://www.semanticdesktop.org/ontologies/2007/03/22/nfo#"),
+    (
+        "nie:",
+        "http://www.semanticdesktop.org/ontologies/2007/01/19/nie#",
+    ),
+    (
+        "nfo:",
+        "http://www.semanticdesktop.org/ontologies/2007/03/22/nfo#",
+    ),
     ("foaf:", "http://xmlns.com/foaf/0.1/"),
     ("dc:", "http://purl.org/dc/elements/1.1/"),
     ("dcterms:", "http://purl.org/dc/terms/"),
@@ -249,6 +255,9 @@ impl RdfJsonTriple {
     }
 }
 impl<'a> TurtleDoc<'a> {
+    pub fn empty_doc() -> Result<Self, TurtleDocError> {
+        TurtleDoc::new(Vec::new(), None, None)
+    }
     pub fn from_file(
         path: impl Into<PathBuf>,
         well_known_prefix: Option<String>,

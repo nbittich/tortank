@@ -114,7 +114,13 @@ impl WasmTurtleDoc {
             doc: doc.into_owned(),
         })
     }
-
+    #[wasm_bindgen(js_name = newEmptyDoc)]
+    pub fn empty_doc() -> Result<WasmTurtleDoc, JsValue> {
+        let doc = NativeTurtleDoc::empty_doc().map_err(js_err)?;
+        Ok(Self {
+            doc: doc.into_owned(),
+        })
+    }
     #[wasm_bindgen(js_name = toTurtle)]
     pub fn to_turtle(&self) -> Result<String, JsValue> {
         self.doc.as_turtle().map_err(js_err)
