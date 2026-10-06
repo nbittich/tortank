@@ -171,7 +171,7 @@ pub struct RdfJsonTriple {
     pub object: RdfJsonNodeResult,
 }
 
-#[derive(PartialEq, PartialOrd, Clone, Debug)]
+#[derive(PartialOrd, Clone, Debug)]
 pub enum Literal<'a> {
     Quoted {
         datatype: Option<Box<Node<'a>>>,
@@ -998,7 +998,37 @@ impl<'a> IntoIterator for TurtleDoc<'a> {
         self.statements.into_iter()
     }
 }
-
+impl PartialEq for Literal<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        // plain literal == xsd:string literal (RDF 1.1)
+        fn effective<'x, 'y>(d: &'x Option<Box<Node<'y>>>) -> Option<&'x Node<'y>> {
+            d.as_deref()
+                .filter(|n| **n != Node::Iri(Cow::Borrowed(XSD_STRING)))
+        }
+        match (self, other) {
+            (
+                Literal::Quoted {
+                    datatype: d1,
+                    value: v1,
+                    lang: l1,
+                },
+                Literal::Quoted {
+                    datatype: d2,
+                    value: v2,
+                    lang: l2,
+                },
+            ) => v1 == v2 && l1 == l2 && effective(d1) == effective(d2),
+            (Literal::Double(a), Literal::Double(b)) => a == b,
+            (Literal::Decimal(a), Literal::Decimal(b)) => a == b,
+            (Literal::Integer(a), Literal::Integer(b)) => a == b,
+            (Literal::Boolean(a), Literal::Boolean(b)) => a == b,
+            (Literal::Date(a), Literal::Date(b)) => a == b,
+            (Literal::DateTime(a), Literal::DateTime(b)) => a == b,
+            (Literal::Time(a), Literal::Time(b)) => a == b,
+            _ => false,
+        }
+    }
+}
 impl PartialEq for Node<'_> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
