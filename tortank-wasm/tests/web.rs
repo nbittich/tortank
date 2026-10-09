@@ -1,9 +1,7 @@
 #![cfg(target_arch = "wasm32")]
-
+use tortank_wasm::legacy::{WasmTurtleDoc, literal, parse_ntriples_statement, uri};
 use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
-
-use tortank_wasm::{WasmTurtleDoc, literal, parse_ntriples_statement, uri};
 
 wasm_bindgen_test_configure!(run_in_browser);
 

@@ -55,7 +55,7 @@ jobs:
             --dev
 
       - name: Test generated Node.js package
-        run: node tests/node.mjs
+        run: node --test tests/*.mjs
 
       # ------------------------------------------------------------
       # Browser
