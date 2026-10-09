@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { DataFactory, Dataset, parseNTriplesQuad, TurtleDoc } = require('../pkg/tortank_wasm.js');
+const { DataFactory, Dataset, parseNTriplesQuad, TurtleDoc } = require('../pkg-node/tortank_wasm.js');
 
 const EX = 'http://example.org/';
 const XSD = 'http://www.w3.org/2001/XMLSchema#';
