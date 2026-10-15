@@ -1,8 +1,9 @@
 use std::{borrow::Cow, sync::Arc};
 
 use crate::turtle::turtle_doc::{Literal, Node, Statement, TurtleDoc};
-
+use serial_test::serial;
 #[test]
+#[serial]
 fn test_query_uuid() {
     let mut buf = String::new();
     let doc =

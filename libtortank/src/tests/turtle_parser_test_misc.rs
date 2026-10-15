@@ -1,3 +1,4 @@
+use serial_test::serial;
 use std::{borrow::Cow, collections::VecDeque};
 
 use crate::{
@@ -11,6 +12,7 @@ use crate::{
 };
 
 #[test]
+#[serial]
 fn simple_collection_test() {
     let s = r#":a :b ( "apple" "banana" ) ."#;
     let (rest, res) = triples(s).unwrap();
@@ -60,7 +62,11 @@ fn simple_collection_test() {
                 [
                     TurtleValue::Literal(Literal::Integer(1,),),
                     TurtleValue::Literal(Literal::Decimal(2.0,),),
-                    TurtleValue::Literal(Literal::Decimal(30.0,),),
+                    TurtleValue::Literal(Literal::Quoted {
+                        datatype: Some(Iri::Enclosed("http://www.w3.org/2001/XMLSchema#double")),
+                        value: "3E1".into(),
+                        lang: None
+                    }),
                 ]
                 .into(),
             )),
@@ -143,6 +149,7 @@ fn simple_collection_test() {
 }
 
 #[test]
+#[serial]
 fn collection_test_from_other() {
     let s = r#"
         ex:techProducts ex:hasProducts ( ex:product1 ex:product2 )."#;
@@ -180,6 +187,7 @@ fn collection_test_from_other() {
 }
 
 #[test]
+#[serial]
 fn test_object_list() {
     let s = r#"
         @prefix ex: <http://example.org/ns#> .
@@ -216,6 +224,7 @@ fn test_object_list() {
 }
 
 #[test]
+#[serial]
 fn list_with_nested_collection() {
     let s = r#"
         # RDF List with nested collections
@@ -279,6 +288,7 @@ fn list_with_nested_collection() {
 }
 
 #[test]
+#[serial]
 fn labeled_bnode_using_proper_rules_test1() {
     let s = "_:b.node :a :b";
     let (rest, res) = triples(s).unwrap();
@@ -303,6 +313,7 @@ fn labeled_bnode_using_proper_rules_test1() {
 }
 
 #[test]
+#[serial]
 fn labeled_bnode_using_proper_rules_test2() {
     let s = "_:b-node :a :b";
     let (rest, res) = triples(s).unwrap();
@@ -327,6 +338,7 @@ fn labeled_bnode_using_proper_rules_test2() {
 }
 
 #[test]
+#[serial]
 fn labeled_bnode_using_proper_rules_test3() {
     let s = "_:b·node :a :b";
     let (rest, res) = triples(s).unwrap();
@@ -351,6 +363,7 @@ fn labeled_bnode_using_proper_rules_test3() {
 }
 
 #[test]
+#[serial]
 fn labeled_bnode_using_proper_rules_test4() {
     let s = "_:b-jöhn :a :b";
     let (rest, res) = triples(s).unwrap();
@@ -375,6 +388,7 @@ fn labeled_bnode_using_proper_rules_test4() {
 }
 
 #[test]
+#[serial]
 fn labeled_bnode_using_proper_rules_test5() {
     let s = "_:b_undertie‿node :a :b";
     let (rest, res) = triples(s).unwrap();
@@ -399,6 +413,7 @@ fn labeled_bnode_using_proper_rules_test5() {
 }
 
 #[test]
+#[serial]
 fn predicate_labeled_bnode_test() {
     let s = r#"
         <http://example.org/ns#ComplexResource> <http://example.org/ns#hasNestedObject> _:1.
@@ -424,6 +439,7 @@ fn predicate_labeled_bnode_test() {
 }
 
 #[test]
+#[serial]
 fn with_unlabeled_type_bnode_test() {
     let s = r#"
         [foaf:name "Bob"] .
@@ -450,12 +466,14 @@ fn with_unlabeled_type_bnode_test() {
 }
 
 #[test]
+#[serial]
 fn labeled_bnode_test() {
     let s = "_:alice";
     let res = labeled_bnode(s);
     assert_eq!(Ok(("", BlankNode::Labeled("alice"))), res);
 }
 #[test]
+#[serial]
 fn prefixed_iri_test() {
     let s = "foaf:firstName";
     let res = prefixed_iri(s);
@@ -472,6 +490,7 @@ fn prefixed_iri_test() {
 }
 
 #[test]
+#[serial]
 fn prefix_test() {
     let sparql = r#"
         PREFIX p: <http://two.example/sparql>
@@ -499,6 +518,7 @@ fn prefix_test() {
 }
 
 #[test]
+#[serial]
 fn base_test() {
     let sparql = r#"
               BASE   <http://one.example/sparql>
@@ -517,6 +537,7 @@ fn base_test() {
 }
 
 #[test]
+#[serial]
 fn unlabeled_nested_bnodes() {
     let s = r#"
         [ foaf:name "Alice" ] foaf:knows [
@@ -668,6 +689,7 @@ fn unlabeled_nested_bnodes() {
 }
 
 #[test]
+#[serial]
 fn predicate_lists_testx() {
     let s = r#"
             <http://en.wikipedia.org/wiki/Helium>
@@ -713,7 +735,11 @@ fn predicate_lists_testx() {
                     predicate: Box::new(TurtleValue::Iri(Iri::Enclosed(
                         "http://example.org/elements/specificGravity",
                     ),)),
-                    object: Box::new(TurtleValue::Literal(Literal::Decimal(0.0001663,),)),
+                    object: Box::new(TurtleValue::Literal(Literal::Quoted {
+                        datatype: Some(Iri::Enclosed("http://www.w3.org/2001/XMLSchema#double")),
+                        value: "1.663E-4".into(),
+                        lang: None
+                    })),
                 },
             ]
             .into(),

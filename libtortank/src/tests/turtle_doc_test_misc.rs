@@ -2,12 +2,155 @@ use crate::{
     shared::XSD_STRING,
     turtle::turtle_doc::{
         Literal, Node, RdfJsonNode, RdfJsonNodeResult, RdfJsonTriple, Statement, TurtleDoc,
+        reset_fake_uuid_gen,
     },
 };
 use Cow::Borrowed;
 use Node::Iri;
 use serial_test::serial;
 use std::{borrow::Cow, sync::Arc};
+
+#[test]
+#[serial]
+fn test_double_shorthand_keeps_lexical_form_and_xsd_double() {
+    let s = r#"@prefix : <http://example.com/>.
+                :a :b 3e2 .
+"#;
+    reset_fake_uuid_gen();
+    let doc: TurtleDoc = (s, None, None).try_into().unwrap();
+    assert_eq!(
+        vec![&Statement {
+            subject: Node::Ref(Arc::new(Node::Iri("http://example.com/a".into(),)),),
+            predicate: Node::Iri("http://example.com/b".into(),),
+            object: Node::Literal(Literal::Quoted {
+                datatype: Some(Node::Iri("http://www.w3.org/2001/XMLSchema#double".into()).into()),
+                value: "3e2".into(),
+                lang: None
+            })
+        }],
+        doc.list_statements(None, None, None)
+    );
+}
+
+#[test]
+#[serial]
+fn test_comment_inside_bnode() {
+    let s = r#"@prefix : <http://example.com/>.
+:a :b [
+    # comment
+    :c 1
+] .
+"#;
+    reset_fake_uuid_gen();
+    let doc: TurtleDoc = (s, None, None).try_into().unwrap();
+    assert_eq!(
+        vec![
+            &Statement {
+                subject: Node::LabeledBlankNode("1".into()),
+                predicate: Node::Iri("http://example.com/c".into(),),
+                object: Node::Literal(Literal::Integer(1i64)),
+            },
+            &Statement {
+                subject: Node::Ref(Arc::new(Node::Iri("http://example.com/a".into(),)),),
+                predicate: Node::Iri("http://example.com/b".into(),),
+                object: Node::LabeledBlankNode("1".into()),
+            }
+        ],
+        doc.list_statements(None, None, None)
+    );
+}
+
+#[test]
+#[serial]
+fn test_repeated_semicolon() {
+    let s = r#"@prefix : <http://example.com/>.
+:a :b 1 ;;
+   :c 2 .
+"#;
+    let doc: TurtleDoc = (s, None, None).try_into().unwrap();
+    assert_eq!(
+        vec![
+            &Statement {
+                subject: Node::Ref(Arc::new(Node::Iri("http://example.com/a".into(),)),),
+                predicate: Node::Iri("http://example.com/b".into(),),
+                object: Node::Literal(Literal::Integer(1i64)),
+            },
+            &Statement {
+                subject: Node::Ref(Arc::new(Node::Iri("http://example.com/a".into(),)),),
+                predicate: Node::Iri("http://example.com/c".into(),),
+                object: Node::Literal(Literal::Integer(2i64)),
+            }
+        ],
+        doc.list_statements(None, None, None)
+    );
+}
+
+#[test]
+#[serial]
+fn test_trailing_before_final() {
+    let s = r#"@prefix : <http://example.com/>.
+:a :b 1 ;
+.
+"#;
+    let doc: TurtleDoc = (s, None, None).try_into().unwrap();
+    assert_eq!(
+        vec![&Statement {
+            subject: Node::Ref(Arc::new(Node::Iri("http://example.com/a".into(),)),),
+            predicate: Node::Iri("http://example.com/b".into(),),
+            object: Node::Literal(Literal::Integer(1i64)),
+        }],
+        doc.list_statements(None, None, None)
+    );
+}
+
+#[test]
+#[serial]
+fn test_single_quoted_literal() {
+    let s = r#"@prefix : <http://example.com/>.
+                    :a :b 'x' ."#;
+    let doc: TurtleDoc = (s, None, None).try_into().unwrap();
+    assert_eq!(
+        vec![&Statement {
+            subject: Node::Ref(Arc::new(Node::Iri("http://example.com/a".into(),)),),
+            predicate: Node::Iri("http://example.com/b".into(),),
+            object: Node::Literal(Literal::Quoted {
+                datatype: Some(Box::new(Iri(
+                    "http://www.w3.org/2001/XMLSchema#string".into(),
+                ),)),
+                value: "x".into(),
+                lang: None,
+            },),
+        }],
+        doc.list_statements(None, None, None)
+    );
+}
+
+#[test]
+#[serial]
+fn test_trailing_inside_blank_node() {
+    let s = r#"@prefix : <http://example.com/>.
+:a :b [
+    :c 1 ;
+] ."#;
+    reset_fake_uuid_gen();
+    let doc: TurtleDoc = (s, None, None).try_into().unwrap();
+    assert_eq!(
+        vec![
+            &Statement {
+                subject: Node::Ref(Node::LabeledBlankNode("1".into()).into()),
+                predicate: Node::Iri("http://example.com/c".into()),
+                object: Node::Literal(Literal::Integer(1))
+            },
+            &Statement {
+                subject: Node::Ref(Iri("http://example.com/a".into()).into()),
+                predicate: Node::Iri("http://example.com/b".into()),
+                object: Node::Ref(Node::LabeledBlankNode("1".into()).into())
+            }
+        ],
+        doc.list_statements(None, None, None)
+    );
+    dbg!(doc);
+}
 
 #[test]
 #[serial]
@@ -57,20 +200,66 @@ fn turtle_doc_list_statements_test() {
     foaf:mbox <bob@example.com>] .
 
         "#;
+
+    reset_fake_uuid_gen();
     let turtle: TurtleDoc = (doc, None, None).try_into().unwrap();
-    let statements = turtle.list_statements(None, None, Some(&Iri(Borrowed("bob@example.com"))));
-    assert_eq!(1, statements.len());
-    assert_eq!(
-        statements,
-        vec![&Statement {
-            subject: Node::Ref(Arc::new(Node::LabeledBlankNode("10".into()))),
-            predicate: Node::Iri(Cow::Borrowed("http://foaf.com/mbox")),
-            object: Node::Iri(Cow::Borrowed("bob@example.com"))
-        }]
+    let statements = turtle.list_statements(
+        None,
+        Some(&Node::Iri(Cow::Borrowed("http://foaf.com/mbox"))),
+        Some(&Iri(Borrowed("bob@example.com"))),
     );
+    assert_eq!(1, statements.len());
+
     let statement = statements[0];
     let statements = turtle.list_statements(Some(&statement.subject), None, None);
+
     assert_eq!(5, statements.len());
+    assert_eq!(
+        statements,
+        vec![
+            &Statement {
+                subject: Node::Ref(Node::LabeledBlankNode("2".into(),).into(),),
+                predicate: Node::Iri("http://foaf.com/name".into(),),
+                object: Node::Literal(Literal::Quoted {
+                    datatype: Some(
+                        Node::Iri("http://www.w3.org/2001/XMLSchema#string".into(),).into(),
+                    ),
+                    value: "Bob".into(),
+                    lang: None,
+                },),
+            },
+            &Statement {
+                subject: Node::Ref(Node::LabeledBlankNode("2".into(),).into(),),
+                predicate: Node::Ref(Node::Iri("http://foaf.com/lastName".into(),).into(),),
+                object: Node::Literal(Literal::Quoted {
+                    datatype: Some(
+                        Node::Iri("http://www.w3.org/2001/XMLSchema#string".into(),).into(),
+                    ),
+                    value: "George".into(),
+                    lang: None,
+                },),
+            },
+            &Statement {
+                subject: Node::Ref(Node::LabeledBlankNode("2".into(),).into(),),
+                predicate: Node::Ref(Node::Iri("http://foaf.com/lastName".into(),).into(),),
+                object: Node::Literal(Literal::Quoted {
+                    datatype: Some(Iri("http://www.w3.org/2001/XMLSchema#string".into(),).into(),),
+                    value: "Joshua".into(),
+                    lang: None,
+                },),
+            },
+            &Statement {
+                subject: Node::Ref(Node::LabeledBlankNode("2".into(),).into(),),
+                predicate: Iri("http://foaf.com/knows".into(),),
+                object: Node::Ref(Node::LabeledBlankNode("3".into(),).into(),),
+            },
+            &Statement {
+                subject: Node::Ref(Node::LabeledBlankNode("2".into(),).into(),),
+                predicate: Iri("http://foaf.com/mbox".into(),),
+                object: Iri("bob@example.com".into(),),
+            },
+        ]
+    );
 }
 
 #[test]

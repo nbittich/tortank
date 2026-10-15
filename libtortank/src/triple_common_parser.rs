@@ -129,6 +129,7 @@ pub(crate) mod literal {
     use crate::string_parser::parse_escaped_string;
     use crate::triple_common_parser::iri::iri;
     use crate::triple_common_parser::{Iri, Literal, tag_no_space};
+    use crate::utils::XSD_DOUBLE;
     pub(crate) fn parse_boolean<'a>(
         case_sensitive: bool,
     ) -> impl FnMut(&'a str) -> ParserResult<'a, Literal<'a>> {
@@ -150,7 +151,17 @@ pub(crate) mod literal {
             .parse(s)
         }
     }
-
+    fn parse_scientic(s: &'_ str) -> ParserResult<'_, Literal<'_>> {
+        map(
+            verify(recognize_float, |v: &str| v.contains(['e', 'E'])),
+            |v: &str| Literal::Quoted {
+                datatype: Some(Iri::Enclosed(XSD_DOUBLE)),
+                value: v.into(),
+                lang: None,
+            },
+        )
+        .parse(s)
+    }
     pub(crate) fn parse_number(s: &'_ str) -> ParserResult<'_, Literal<'_>> {
         use nom::character::complete::{char, digit1, one_of};
         use nom::combinator::{not, recognize};
@@ -165,9 +176,11 @@ pub(crate) mod literal {
             ),
             Literal::Integer,
         );
+
         let float_or_double = map_parser(
             recognize_float,
             alt((
+                parse_scientic,
                 map(all_consuming(float), Literal::Decimal),
                 map(all_consuming(double), Literal::Double),
             )),
@@ -208,18 +221,11 @@ pub(crate) mod literal {
                     alt((long_quote_literal, long_single_quote_literal)),
                     Cow::Borrowed,
                 ),
-                alt((
-                    delimited(
-                        tag(STRING_LITERAL_SINGLE_QUOTE),
-                        parse_escaped_string,
-                        tag(STRING_LITERAL_SINGLE_QUOTE),
-                    ),
-                    delimited(
-                        tag(STRING_LITERAL_QUOTE),
-                        parse_escaped_string,
-                        tag(STRING_LITERAL_QUOTE),
-                    ),
-                )),
+                alt((delimited(
+                    tag(STRING_LITERAL_QUOTE),
+                    parse_escaped_string,
+                    tag(STRING_LITERAL_QUOTE),
+                ),)),
                 map(
                     delimited(
                         tag_no_space(STRING_LITERAL_QUOTE),
@@ -282,6 +288,7 @@ pub(crate) mod literal {
 pub(crate) mod triple {
 
     use nom::error::ParseError;
+    use nom::multi::many1;
     use nom_language::error::VerboseError;
 
     use crate::grammar::BLANK_NODE_LABEL;
@@ -339,12 +346,15 @@ pub(crate) mod triple {
                 subject_extractor,
                 preceded(
                     multispace0,
-                    separated_list1(
-                        delimited(multispace0, tag(";"), comments),
-                        map(
-                            pair(predicate_extractor, object_list_extractor),
-                            map_predicate_object,
+                    terminated(
+                        separated_list1(
+                            delimited(multispace0, many1(tag(";")), comments),
+                            map(
+                                pair(predicate_extractor, object_list_extractor),
+                                map_predicate_object,
+                            ),
                         ),
+                        many0(preceded(multispace0, char(';'))),
                     ),
                 ),
             ),
@@ -378,7 +388,10 @@ pub(crate) mod triple {
             multispace0,
             preceded(
                 char('['),
-                terminated(anon_parser, preceded(multispace0, cut(char(']')))),
+                preceded(
+                    comments,
+                    terminated(anon_parser, preceded(multispace0, cut(char(']')))),
+                ),
             ),
         )
     }

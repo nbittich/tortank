@@ -194,6 +194,7 @@ pub enum Node<'a> {
     List(Vec<Node<'a>>),
     LabeledBlankNode(String),
 }
+
 #[derive(PartialEq, PartialOrd, Debug, Clone)]
 pub struct Statement<'a> {
     pub subject: Node<'a>,
@@ -1422,7 +1423,9 @@ fn typed_literal<'a>(
         Some(XSD_BOOLEAN) => Some(Literal::Boolean(parse_lit(&value)?)),
         Some(XSD_INTEGER) => Some(Literal::Integer(parse_lit(&value)?)),
         Some(XSD_DECIMAL) => Some(Literal::Decimal(parse_lit(&value)?)),
-        Some(XSD_DOUBLE) => Some(Literal::Double(parse_lit(&value)?)),
+        Some(XSD_DOUBLE) if !value.contains("E") && !value.contains("e") => {
+            Some(Literal::Double(parse_lit(&value)?))
+        }
         Some(XSD_DATE) => parse_date_time(&value).map(Literal::Date),
         Some(XSD_DATE_TIME) => parse_date_time(&value).map(Literal::DateTime),
         Some(XSD_TIME) => TIME_FORMATS

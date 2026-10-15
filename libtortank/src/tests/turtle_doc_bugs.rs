@@ -1,6 +1,7 @@
 use crate::turtle::turtle_doc::{RdfJsonTriple, TurtleDoc};
-
+use serial_test::serial;
 #[test]
+#[serial]
 fn test_well_known_prefixed() {
     let ttl = r#"
     @prefix ex: <http://example.org/>.
@@ -25,6 +26,7 @@ fn test_well_known_prefixed() {
 }
 
 #[test]
+#[serial]
 fn json_literals_match_parsed_turtle() {
     let json = r#"[
       {"subject":{"type":"uri","value":"http://a"},"predicate":{"type":"uri","value":"http://b"},
