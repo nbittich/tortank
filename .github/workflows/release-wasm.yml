@@ -23,6 +23,11 @@ jobs:
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
           cd tortank-wasm 
           RUSTFLAGS='--cfg getrandom_backend="wasm_js" -Ctarget-cpu=mvp' wasm-pack build --target nodejs --release --scope nbittich   .
+          # wasm-pack omits wasm-bindgen inline_js snippets from "files", so npm drops them
+          jq '.files = ((.files // []) + ["snippets/"] | unique)' pkg/package.json > pkg/package.json.tmp
+          mv pkg/package.json.tmp pkg/package.json
+          # fail the build if the snippets are not going to be published
+          npm pack --dry-run ./pkg 2>&1 | grep -q 'snippets/.*inline0.js' || { echo "snippets/ missing from npm package"; exit 1; }
           wasm-pack pack pkg
 
       - name: Upload pkg
@@ -46,6 +51,15 @@ jobs:
         with:
           node-version: "20.x"
           registry-url: "https://registry.npmjs.org"
+      - name: Smoke test packed package
+        run: |
+          cd pkg
+          TGZ="$PWD/$(npm pack --silent)"
+          NAME=$(jq -r .name package.json)
+          mkdir /tmp/smoke && cd /tmp/smoke
+          npm init -y >/dev/null
+          npm install "$TGZ"
+          node -e "require('$NAME')"
       - name: Publish on NPM
         run: |
           cd pkg
