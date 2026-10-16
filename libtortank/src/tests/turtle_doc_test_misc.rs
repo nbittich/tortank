@@ -64,7 +64,7 @@ fn test_comment_inside_bnode() {
 #[serial]
 fn test_repeated_semicolon() {
     let s = r#"@prefix : <http://example.com/>.
-:a :b 1 ;;
+:a :b 1 ; ;
    :c 2 .
 "#;
     let doc: TurtleDoc = (s, None, None).try_into().unwrap();

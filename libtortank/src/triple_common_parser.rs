@@ -294,7 +294,9 @@ pub(crate) mod triple {
     use crate::grammar::BLANK_NODE_LABEL;
     use crate::prelude::*;
     use crate::shared::NS_TYPE;
-    use crate::triple_common_parser::{BlankNode, Iri, comments, paren_close, paren_open};
+    use crate::triple_common_parser::{
+        BlankNode, Iri, comments, paren_close, paren_open, tag_no_space,
+    };
 
     use std::collections::VecDeque;
 
@@ -348,7 +350,7 @@ pub(crate) mod triple {
                     multispace0,
                     terminated(
                         separated_list1(
-                            delimited(multispace0, many1(tag(";")), comments),
+                            delimited(multispace0, many1(tag_no_space(";")), comments),
                             map(
                                 pair(predicate_extractor, object_list_extractor),
                                 map_predicate_object,
